@@ -6,6 +6,10 @@
 #include "imgui_impl/imgui_impl_glfw.h"
 #include "imgui_impl/imgui_impl_opengl3.h"
 #include <stdio.h>
+#include "Shader.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #define IMGUI_IMPL_OPENGL_LOADER_GLAD
 
@@ -19,21 +23,22 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
+
 bool init();
 void init_imgui();
-
-void input();
-void update();
-void render();
 
 void imgui_begin();
 void imgui_render();
 void imgui_end();
+void Cube(Shader);
+void recursion(Shader,int,glm::mat4&);
 
 void end_frame();
 
 constexpr int32_t WINDOW_WIDTH  = 1920;
 constexpr int32_t WINDOW_HEIGHT = 1080;
+
+int Recursion = 1;
 
 GLFWwindow* window = nullptr;
 
@@ -42,9 +47,11 @@ const     char*   glsl_version     = "#version 460";
 constexpr int32_t GL_VERSION_MAJOR = 4;
 constexpr int32_t GL_VERSION_MINOR = 6;
 
-bool   show_demo_window    = true;
+bool   show_demo_window    = false;
 bool   show_another_window = false;
 ImVec4 clear_color         = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+unsigned int VAO;
+
 
 int main(int, char**)
 {
@@ -54,40 +61,188 @@ int main(int, char**)
         return EXIT_FAILURE;
     }
     spdlog::info("Initialized project.");
-
-    init_imgui();
+    Shader shader = Shader("res/shaders/VertexShader.vert", "res/shaders/FragmentShader.frag");
+    //init_imgui();
     spdlog::info("Initialized ImGui.");
+    float vertices[] = {
+        // Front face
+        -0.5f, -0.5f,  0.5f,  // Vertex 0
+         0.5f, -0.5f,  0.5f,  // Vertex 1
+         0.5f,  0.5f,  0.5f,  // Vertex 2
+        -0.5f, -0.5f,  0.5f,  // Vertex 0
+         0.5f,  0.5f,  0.5f,  // Vertex 2
+        -0.5f,  0.5f,  0.5f,  // Vertex 3
+
+        // Back face
+        -0.5f, -0.5f, -0.5f,  // Vertex 4
+        -0.5f,  0.5f, -0.5f,  // Vertex 5
+         0.5f,  0.5f, -0.5f,  // Vertex 6
+        -0.5f, -0.5f, -0.5f,  // Vertex 4
+         0.5f,  0.5f, -0.5f,  // Vertex 6
+         0.5f, -0.5f, -0.5f,  // Vertex 7
+
+         // Left face
+         -0.5f, -0.5f, -0.5f,  // Vertex 4
+         -0.5f, -0.5f,  0.5f,  // Vertex 0
+         -0.5f,  0.5f,  0.5f,  // Vertex 3
+         -0.5f, -0.5f, -0.5f,  // Vertex 4
+         -0.5f,  0.5f,  0.5f,  // Vertex 3
+         -0.5f,  0.5f, -0.5f,  // Vertex 5
+
+         // Right face
+          0.5f, -0.5f, -0.5f,  // Vertex 7
+          0.5f,  0.5f, -0.5f,  // Vertex 6
+          0.5f,  0.5f,  0.5f,  // Vertex 2
+          0.5f, -0.5f, -0.5f,  // Vertex 7
+          0.5f,  0.5f,  0.5f,  // Vertex 2
+          0.5f, -0.5f,  0.5f,  // Vertex 1
+
+          // Top face
+          -0.5f,  0.5f, -0.5f,  // Vertex 5
+          -0.5f,  0.5f,  0.5f,  // Vertex 3
+           0.5f,  0.5f,  0.5f,  // Vertex 2
+          -0.5f,  0.5f, -0.5f,  // Vertex 5
+           0.5f,  0.5f,  0.5f,  // Vertex 2
+           0.5f,  0.5f, -0.5f,  // Vertex 6
+
+           // Bottom face
+           -0.5f, -0.5f, -0.5f,  // Vertex 4
+            0.5f, -0.5f,  0.5f,  // Vertex 1
+           -0.5f, -0.5f,  0.5f,  // Vertex 0
+           -0.5f, -0.5f, -0.5f,  // Vertex 4
+            0.5f, -0.5f, -0.5f,  // Vertex 7
+            0.5f, -0.5f,  0.5f   // Vertex 5
+    };
+
+    unsigned int VBO;
+    glGenBuffers(1, &VBO);
+  /*  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);*/
+    glGenVertexArrays(1, &VAO);
+    // 1. bind Vertex Array Object
+    glBindVertexArray(VAO);
+
+    // 2. copy our vertices array in a buffer for OpenGL to use
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // 3. then set our vertex attributes pointers
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    glEnable(GL_DEPTH_TEST);
 
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
-        // Process I/O operations here
-        input();
+        
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Update game objects' state here
-        update();
+        
+        glm::mat4 projection;
+        glm::mat4 view = glm::mat4(1.0f);
+        glm::mat4 transform = glm::mat4(1.0f);
+        projection = glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 100.0f);
+        shader.setMat4("projection", projection);
+        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+        shader.setMat4("view", view);
+        if (Recursion == 0)
+        {
+            Cube(shader);
+        }
+        else
+        {
+            recursion(shader,1,transform);
+        }
+
 
         // OpenGL rendering code here
-        render();
+
 
         // Draw ImGui
-        imgui_begin();
-        imgui_render(); // edit this function to add your own ImGui controls
-        imgui_end(); // this call effectively renders ImGui
-
+            //imgui_begin();
+            //imgui_render(); // edit this function to add your own ImGui controls
+        //imgui_end(); // this call effectively renders ImGui
+        
         // End frame and swap buffers (double buffering)
         end_frame();
     }
 
     // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
+    /*ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
+    ImGui::DestroyContext();*/
 
     glfwDestroyWindow(window);
     glfwTerminate();
 
     return 0;
+}
+
+void Cube(Shader shader)
+{
+    glm::mat4 transform = glm::mat4(1.0f);
+    transform = glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+    shader.setMat4("transform", transform);
+    shader.use();
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 12 * 3);
+}
+
+void tripleCube(Shader shader,glm::mat4 tr)
+{
+    tr = glm::translate(tr, glm::vec3(1.0f, 0.0f, 0.0f));
+    shader.setMat4("transform", tr);
+    Cube(shader);
+    tr = glm::translate(tr, glm::vec3(1.0f, 0.0f, 0.0f));
+    shader.setMat4("transform", tr);
+    Cube(shader);
+    tr = glm::translate(tr, glm::vec3(1.0f, 0.0f, 0.0f));
+    shader.setMat4("transform", tr);
+    Cube(shader);
+}
+
+void doubleCube(Shader shader, glm::mat4 tr)
+{
+    tr = glm::translate(tr, glm::vec3(1.0f, 0.0f, 0.0f));
+    shader.setMat4("transform", tr);
+    Cube(shader);
+    tr = glm::translate(tr, glm::vec3(2.0f, 0.0f, 0.0f));
+    shader.setMat4("transform", tr);
+    Cube(shader);
+}
+void recursion(Shader shader, int n, glm::mat4& transform)
+{
+    transform = glm::scale(transform, glm::vec3(0.33));
+    //transform = glm::translate(transform, glm::vec3(0.5f/3, 0.5f/3, 0.5f/3));
+
+    for (int i = 0; i < 9; i++)
+    {
+        if (i != 0 && i != 3 && i != 6)
+        {
+            transform = glm::translate(transform, glm::vec3(0.0f, 0.0f, 1.0f));
+        }
+        if (i == 3 || i == 6)
+        {
+            transform = glm::translate(transform, glm::vec3(0.0f, 1.0f, -2.0f));
+        }
+        if (n != Recursion)
+        {
+            recursion(shader, n + 1, transform);
+        }
+        else if (i == 0 || i == 2 || i == 6 || i == 8)
+        {
+            tripleCube(shader, transform);
+        }
+        else if (i == 1 || i == 3 || i == 5 || i == 7)
+        {
+            doubleCube(shader, transform);
+        }
+        
+    }
+
+    
 }
 
 bool init()
@@ -107,7 +262,7 @@ bool init()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 
     // Create window with graphics context
-    window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Dear ImGui GLFW+OpenGL4 example", NULL, NULL);
+    window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Cube", NULL, NULL);
     if (window == NULL)
     {
         spdlog::error("Failed to create GLFW Window!");
@@ -142,37 +297,6 @@ void init_imgui()
 
     // Setup style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsClassic();
-
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Read 'misc/fonts/README.txt' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != NULL);
-}
-
-void input()
-{
-    // I/O ops go here
-}
-
-void update()
-{
-    // Update game objects' state here
-}
-
-void render()
-{
-    // OpenGL Rendering code goes here
 }
 
 void imgui_begin()
@@ -227,13 +351,7 @@ void imgui_render()
 void imgui_end()
 {
     ImGui::Render();
-    int display_w, display_h;
     glfwMakeContextCurrent(window);
-    glfwGetFramebufferSize(window, &display_w, &display_h);
-
-    glViewport(0, 0, display_w, display_h);
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-    glClear(GL_COLOR_BUFFER_BIT);
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
