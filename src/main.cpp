@@ -12,7 +12,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #define IMGUI_IMPL_OPENGL_LOADER_GLAD
-
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 #include <glad/glad.h>  // Initialize with gladLoadGL()
 
 #include <GLFW/glfw3.h> // Include glfw3.h after our OpenGL definitions
@@ -31,7 +32,7 @@ void imgui_begin();
 void imgui_render();
 void imgui_end();
 void Cube(Shader);
-void recursion(Shader,int,glm::mat4&);
+void MengerSponge(float x, float y, float z, float size, int level, Shader shader);
 
 void end_frame();
 
@@ -39,6 +40,8 @@ constexpr int32_t WINDOW_WIDTH  = 1920;
 constexpr int32_t WINDOW_HEIGHT = 1080;
 
 int Recursion = 1;
+float RotationY = 45;
+float RotationX = 0;
 
 GLFWwindow* window = nullptr;
 
@@ -50,7 +53,9 @@ constexpr int32_t GL_VERSION_MINOR = 6;
 bool   show_demo_window    = false;
 bool   show_another_window = false;
 ImVec4 clear_color         = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+glm::vec3 color = glm::vec3(0.3f, 0.5f, 0.6f);
 unsigned int VAO;
+unsigned int textureID;
 
 
 int main(int, char**)
@@ -62,76 +67,212 @@ int main(int, char**)
     }
     spdlog::info("Initialized project.");
     Shader shader = Shader("res/shaders/VertexShader.vert", "res/shaders/FragmentShader.frag");
-    //init_imgui();
+    init_imgui();
     spdlog::info("Initialized ImGui.");
+    
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    // Load the image using stb_image
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load("res/textures/stone.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        // Specify the texture format based on the number of channels
+        GLenum format = (nrChannels == 4) ? GL_RGBA : GL_RGB;
+
+        // Upload the texture data to the GPU
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        // Set the texture wrapping and filtering options
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        std::cout << "Texture loaded successfully: " << "stone.jpg" << std::endl;
+    }
+    else {
+        std::cerr << "Failed to load texture: " << "stone.jpg" << std::endl;
+    }
+    stbi_image_free(data); // Free the image memory
     float vertices[] = {
         // Front face
-        -0.5f, -0.5f,  0.5f,  // Vertex 0
-         0.5f, -0.5f,  0.5f,  // Vertex 1
-         0.5f,  0.5f,  0.5f,  // Vertex 2
-        -0.5f, -0.5f,  0.5f,  // Vertex 0
-         0.5f,  0.5f,  0.5f,  // Vertex 2
-        -0.5f,  0.5f,  0.5f,  // Vertex 3
+        -0.5f, -0.5f,  0.5f,  // Bottom-left
+         0.5f, -0.5f,  0.5f,  // Bottom-right
+         0.5f,  0.5f,  0.5f,  // Top-right
+        -0.5f,  0.5f,  0.5f,  // Top-left
 
         // Back face
-        -0.5f, -0.5f, -0.5f,  // Vertex 4
-        -0.5f,  0.5f, -0.5f,  // Vertex 5
-         0.5f,  0.5f, -0.5f,  // Vertex 6
-        -0.5f, -0.5f, -0.5f,  // Vertex 4
-         0.5f,  0.5f, -0.5f,  // Vertex 6
-         0.5f, -0.5f, -0.5f,  // Vertex 7
+        -0.5f, -0.5f, -0.5f,  // Bottom-left
+         0.5f, -0.5f, -0.5f,  // Bottom-right
+         0.5f,  0.5f, -0.5f,  // Top-right
+        -0.5f,  0.5f, -0.5f,  // Top-left
 
-         // Left face
-         -0.5f, -0.5f, -0.5f,  // Vertex 4
-         -0.5f, -0.5f,  0.5f,  // Vertex 0
-         -0.5f,  0.5f,  0.5f,  // Vertex 3
-         -0.5f, -0.5f, -0.5f,  // Vertex 4
-         -0.5f,  0.5f,  0.5f,  // Vertex 3
-         -0.5f,  0.5f, -0.5f,  // Vertex 5
+        // Left face
+        -0.5f, -0.5f, -0.5f,  // Bottom-left
+        -0.5f, -0.5f,  0.5f,  // Bottom-right
+        -0.5f,  0.5f,  0.5f,  // Top-right
+        -0.5f,  0.5f, -0.5f,  // Top-left
 
-         // Right face
-          0.5f, -0.5f, -0.5f,  // Vertex 7
-          0.5f,  0.5f, -0.5f,  // Vertex 6
-          0.5f,  0.5f,  0.5f,  // Vertex 2
-          0.5f, -0.5f, -0.5f,  // Vertex 7
-          0.5f,  0.5f,  0.5f,  // Vertex 2
-          0.5f, -0.5f,  0.5f,  // Vertex 1
+        // Right face
+         0.5f, -0.5f, -0.5f,  // Bottom-left
+         0.5f, -0.5f,  0.5f,  // Bottom-right
+         0.5f,  0.5f,  0.5f,  // Top-right
+         0.5f,  0.5f, -0.5f,  // Top-left
 
-          // Top face
-          -0.5f,  0.5f, -0.5f,  // Vertex 5
-          -0.5f,  0.5f,  0.5f,  // Vertex 3
-           0.5f,  0.5f,  0.5f,  // Vertex 2
-          -0.5f,  0.5f, -0.5f,  // Vertex 5
-           0.5f,  0.5f,  0.5f,  // Vertex 2
-           0.5f,  0.5f, -0.5f,  // Vertex 6
+         // Top face
+         -0.5f,  0.5f, -0.5f,  // Bottom-left
+         -0.5f,  0.5f,  0.5f,  // Bottom-right
+          0.5f,  0.5f,  0.5f,  // Top-right
+          0.5f,  0.5f, -0.5f,  // Top-left
 
-           // Bottom face
-           -0.5f, -0.5f, -0.5f,  // Vertex 4
-            0.5f, -0.5f,  0.5f,  // Vertex 1
-           -0.5f, -0.5f,  0.5f,  // Vertex 0
-           -0.5f, -0.5f, -0.5f,  // Vertex 4
-            0.5f, -0.5f, -0.5f,  // Vertex 7
-            0.5f, -0.5f,  0.5f   // Vertex 5
+          // Bottom face
+          -0.5f, -0.5f, -0.5f,  // Bottom-left
+          -0.5f, -0.5f,  0.5f,  // Bottom-right
+           0.5f, -0.5f,  0.5f,  // Top-right
+           0.5f, -0.5f, -0.5f   // Top-left
+    };
+    unsigned int indices[] = {
+        // Front face
+        0, 1, 2,
+        0, 2, 3,
+
+        // Back face
+        4, 5, 6,
+        4, 6, 7,
+
+        // Left face
+        8, 9, 10,
+        8, 10, 11,
+
+        // Right face
+        12, 13, 14,
+        12, 14, 15,
+
+        // Top face
+        16, 17, 18,
+        16, 18, 19,
+
+        // Bottom face
+        20, 21, 22,
+        20, 22, 23
+    };
+    float texCoords[] = {
+        // Front face
+        0.0f, 0.0f,  // Bottom-left
+        1.0f, 0.0f,  // Bottom-right
+        1.0f, 1.0f,  // Top-right
+        0.0f, 1.0f,  // Top-left
+
+        // Back face
+        0.0f, 0.0f,  // Bottom-left
+        1.0f, 0.0f,  // Bottom-right
+        1.0f, 1.0f,  // Top-right
+        0.0f, 1.0f,  // Top-left
+
+        // Left face
+        0.0f, 0.0f,  // Bottom-left
+        1.0f, 0.0f,  // Bottom-right
+        1.0f, 1.0f,  // Top-right
+        0.0f, 1.0f,  // Top-left
+
+        // Right face
+        0.0f, 0.0f,  // Bottom-left
+        1.0f, 0.0f,  // Bottom-right
+        1.0f, 1.0f,  // Top-right
+        0.0f, 1.0f,  // Top-left
+
+        // Top face
+        0.0f, 0.0f,  // Bottom-left
+        1.0f, 0.0f,  // Bottom-right
+        1.0f, 1.0f,  // Top-right
+        0.0f, 1.0f,  // Top-left
+
+        // Bottom face
+        0.0f, 0.0f,  // Bottom-left
+        1.0f, 0.0f,  // Bottom-right
+        1.0f, 1.0f,  // Top-right
+        0.0f, 1.0f   // Top-left
+    };
+    float normals[] = {
+        // Front face normals (0, 0, 1)
+         0.0f,  0.0f,  1.0f,  // Bottom-left
+         0.0f,  0.0f,  1.0f,  // Bottom-right
+         0.0f,  0.0f,  1.0f,  // Top-right
+         0.0f,  0.0f,  1.0f,  // Top-left
+
+         // Back face normals (0, 0, -1)
+          0.0f,  0.0f, -1.0f,  // Bottom-left
+          0.0f,  0.0f, -1.0f,  // Bottom-right
+          0.0f,  0.0f, -1.0f,  // Top-right
+          0.0f,  0.0f, -1.0f,  // Top-left
+
+          // Left face normals (-1, 0, 0)
+          -1.0f,  0.0f,  0.0f,  // Bottom-left
+          -1.0f,  0.0f,  0.0f,  // Bottom-right
+          -1.0f,  0.0f,  0.0f,  // Top-right
+          -1.0f,  0.0f,  0.0f,  // Top-left
+
+          // Right face normals (1, 0, 0)
+           1.0f,  0.0f,  0.0f,  // Bottom-left
+           1.0f,  0.0f,  0.0f,  // Bottom-right
+           1.0f,  0.0f,  0.0f,  // Top-right
+           1.0f,  0.0f,  0.0f,  // Top-left
+
+           // Top face normals (0, 1, 0)
+            0.0f,  1.0f,  0.0f,  // Bottom-left
+            0.0f,  1.0f,  0.0f,  // Bottom-right
+            0.0f,  1.0f,  0.0f,  // Top-right
+            0.0f,  1.0f,  0.0f,  // Top-left
+
+            // Bottom face normals (0, -1, 0)
+             0.0f, -1.0f,  0.0f,  // Bottom-left
+             0.0f, -1.0f,  0.0f,  // Bottom-right
+             0.0f, -1.0f,  0.0f,  // Top-right
+             0.0f, -1.0f,  0.0f   // Top-left
     };
 
     unsigned int VBO;
+    unsigned int texCoordVBO;
+    unsigned int normalsVBO;
     glGenBuffers(1, &VBO);
-  /*  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);*/
+    glGenBuffers(1, &texCoordVBO);
+    glGenBuffers(1, &normalsVBO);
+    unsigned int EBO;
+    glGenBuffers(1, &EBO);
     glGenVertexArrays(1, &VAO);
+
     // 1. bind Vertex Array Object
     glBindVertexArray(VAO);
-
     // 2. copy our vertices array in a buffer for OpenGL to use
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+
+
     // 3. then set our vertex attributes pointers
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    //Texture
+    glBindBuffer(GL_ARRAY_BUFFER, texCoordVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(texCoords), texCoords, GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    //Lighting
+    glBindBuffer(GL_ARRAY_BUFFER, normalsVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(normals), normals, GL_STATIC_DRAW);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(2);
+ /*   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);*/
+
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-
     glEnable(GL_DEPTH_TEST);
-
+    glEnable(GL_TEXTURE_2D);
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
@@ -147,32 +288,25 @@ int main(int, char**)
         shader.setMat4("projection", projection);
         view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
         shader.setMat4("view", view);
-        if (Recursion == 0)
-        {
-            Cube(shader);
-        }
-        else
-        {
-            recursion(shader,1,transform);
-        }
-
-
-        // OpenGL rendering code here
+        shader.setVec3("lightPos", glm::vec3(0.0f, 0.0f, 3.0f));
+        shader.setVec3("color", color);
+        MengerSponge(0.0f,0.0f,0.0f,1.0f,Recursion,shader);
+        
 
 
         // Draw ImGui
-            //imgui_begin();
-            //imgui_render(); // edit this function to add your own ImGui controls
-        //imgui_end(); // this call effectively renders ImGui
+        imgui_begin();
+        imgui_render(); // edit this function to add your own ImGui controls
+        imgui_end(); // this call effectively renders ImGui
         
         // End frame and swap buffers (double buffering)
         end_frame();
     }
 
     // Cleanup
-    /*ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();*/
+    ImGui::DestroyContext();
 
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -180,69 +314,53 @@ int main(int, char**)
     return 0;
 }
 
-void Cube(Shader shader)
+void Cube(float x, float y, float z, float size ,Shader shader)
 {
     glm::mat4 transform = glm::mat4(1.0f);
-    transform = glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+    transform = glm::rotate(transform, glm::radians(RotationY), glm::vec3(0.0f, 1.0f, 0.0f));
+    transform = glm::rotate(transform, glm::radians(RotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+    transform = glm::translate(transform, glm::vec3(x, y, z));
+    
+    transform = glm::scale(transform, glm::vec3(size));
     shader.setMat4("transform", transform);
     shader.use();
+    glBindTexture(GL_TEXTURE_2D, textureID);
     glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 12 * 3);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT,0);
 }
 
-void tripleCube(Shader shader,glm::mat4 tr)
+void MengerSponge(float x, float y, float z, float size, int level, Shader shader)
 {
-    tr = glm::translate(tr, glm::vec3(1.0f, 0.0f, 0.0f));
-    shader.setMat4("transform", tr);
-    Cube(shader);
-    tr = glm::translate(tr, glm::vec3(1.0f, 0.0f, 0.0f));
-    shader.setMat4("transform", tr);
-    Cube(shader);
-    tr = glm::translate(tr, glm::vec3(1.0f, 0.0f, 0.0f));
-    shader.setMat4("transform", tr);
-    Cube(shader);
-}
-
-void doubleCube(Shader shader, glm::mat4 tr)
-{
-    tr = glm::translate(tr, glm::vec3(1.0f, 0.0f, 0.0f));
-    shader.setMat4("transform", tr);
-    Cube(shader);
-    tr = glm::translate(tr, glm::vec3(2.0f, 0.0f, 0.0f));
-    shader.setMat4("transform", tr);
-    Cube(shader);
-}
-void recursion(Shader shader, int n, glm::mat4& transform)
-{
-    transform = glm::scale(transform, glm::vec3(0.33));
-    //transform = glm::translate(transform, glm::vec3(0.5f/3, 0.5f/3, 0.5f/3));
-
-    for (int i = 0; i < 9; i++)
+    if (level == 0)
     {
-        if (i != 0 && i != 3 && i != 6)
-        {
-            transform = glm::translate(transform, glm::vec3(0.0f, 0.0f, 1.0f));
-        }
-        if (i == 3 || i == 6)
-        {
-            transform = glm::translate(transform, glm::vec3(0.0f, 1.0f, -2.0f));
-        }
-        if (n != Recursion)
-        {
-            recursion(shader, n + 1, transform);
-        }
-        else if (i == 0 || i == 2 || i == 6 || i == 8)
-        {
-            tripleCube(shader, transform);
-        }
-        else if (i == 1 || i == 3 || i == 5 || i == 7)
-        {
-            doubleCube(shader, transform);
-        }
-        
+        // Base case: Draw a single cube
+        Cube(x, y, z, size, shader);
     }
-
-    
+    else
+    {
+        // Divide the current cube into 27 smaller cubes
+        float newSize = size / 3.0f;
+        for (int i = -1; i <= 1; ++i)
+        {
+            for (int j = -1; j <= 1; ++j)
+            {
+                for (int k = -1; k <= 1; ++k)
+                {
+                    // Skip the center cubes to create the holes in the sponge
+                    if (abs(i) + abs(j) + abs(k) > 1)
+                    {
+                        MengerSponge(
+                            x + i * newSize,
+                            y + j * newSize,
+                            z + k * newSize,
+                            newSize,
+                            level - 1, shader
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
 
 bool init()
@@ -309,41 +427,26 @@ void imgui_begin()
 
 void imgui_render()
 {
-    /// Add new ImGui controls here
-    // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-    if (show_demo_window)
-        ImGui::ShowDemoWindow(&show_demo_window);
+    ///// Add new ImGui controls here
+    //// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+    //if (show_demo_window)
+    //    ImGui::ShowDemoWindow(&show_demo_window);
 
     // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
     {
-        static float f = 0.0f;
-        static int counter = 0;
 
-        ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+        ImGui::Begin("Settings");                          // Create a window called "Hello, world!" and append into it.
 
-        ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-        ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-        ImGui::Checkbox("Another Window", &show_another_window);
+        //ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+        //ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+        //ImGui::Checkbox("Another Window", &show_another_window);
 
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-        if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-            counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", counter);
+        ImGui::SliderInt("Recursion", &Recursion, 0, 10);            // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::SliderFloat("Rotation Y", &RotationY, 0.0f, 360.0f);
+        ImGui::SliderFloat("Rotation X", &RotationX, 0.0f, 360.0f);
+        ImGui::ColorEdit3("Color", (float*)&color); // Edit 3 floats representing a color
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::End();
-    }
-
-    // 3. Show another simple window.
-    if (show_another_window)
-    {
-        ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-        ImGui::Text("Hello from another window!");
-        if (ImGui::Button("Close Me"))
-            show_another_window = false;
         ImGui::End();
     }
 }
@@ -351,6 +454,7 @@ void imgui_render()
 void imgui_end()
 {
     ImGui::Render();
+    ImGui::EndFrame();
     glfwMakeContextCurrent(window);
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
