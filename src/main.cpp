@@ -5,7 +5,6 @@
 #include "imgui.h"
 #include "imgui_impl/imgui_impl_glfw.h"
 #include "imgui_impl/imgui_impl_opengl3.h"
-#include <stdio.h>
 #include "Shader.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -50,8 +49,6 @@ const     char*   glsl_version     = "#version 460";
 constexpr int32_t GL_VERSION_MAJOR = 4;
 constexpr int32_t GL_VERSION_MINOR = 6;
 
-bool   show_demo_window    = false;
-bool   show_another_window = false;
 ImVec4 clear_color         = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 glm::vec3 color = glm::vec3(0.3f, 0.5f, 0.6f);
 unsigned int VAO;
