@@ -2,6 +2,7 @@
 #include "stb_image.h"
 void Model::Draw(Shader& shader)
 {
+    shader.setMat4("model", transform.modelMatrix);
     for (unsigned int i = 0; i < meshes.size(); i++)
         meshes[i].Draw(shader);
 }
@@ -51,7 +52,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
         vector.y = mesh->mVertices[i].y;
         vector.z = mesh->mVertices[i].z;
         vertex.Position = vector;
-        vertices.push_back(vertex);
+        
         vector.x = mesh->mNormals[i].x;
         vector.y = mesh->mNormals[i].y;
         vector.z = mesh->mNormals[i].z;
@@ -64,7 +65,11 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
             vertex.TexCoords = vec;
         }
         else
+        {
             vertex.TexCoords = glm::vec2(0.0f, 0.0f);
+        }
+        vertices.push_back(vertex);
+            
     }
     // process indices
     for (unsigned int i = 0; i < mesh->mNumFaces; i++)
@@ -95,7 +100,7 @@ unsigned int TextureFromFile(const char* path, const string& directory, bool gam
 
     unsigned int textureID;
     glGenTextures(1, &textureID);
-
+    //stbi_set_flip_vertically_on_load(true);
     int width, height, nrComponents;
     unsigned char* data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
     if (data)

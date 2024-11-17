@@ -5,3 +5,4 @@
 5. stb_image 2.19 https://github.com/nothings/stb/blob/master/stb_image.h
 6. glad 0.1.27 https://github.com/Dav1dde/glad
 7. spdlog 1.10.0 https://github.com/gabime/spdlog
+8. assimp 5.4.3 https://github.com/assimp/assimp
