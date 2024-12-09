@@ -5,6 +5,7 @@ void Model::Draw(Shader& shader)
     shader.setMat4("model", transform.modelMatrix);
     for (unsigned int i = 0; i < meshes.size(); i++)
         meshes[i].Draw(shader);
+    shader.setMat4("model", glm::mat4());
 }
 
 void Model::loadModel(string path)

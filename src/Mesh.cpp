@@ -1,12 +1,11 @@
 #include "Mesh.h"
-#include "Planet.h"
+#include "Building.h"
 using namespace std;
 Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
 {
     this->vertices = vertices;
     this->indices = indices;
     this->textures = textures;
-
     setupMesh();
 }
 
@@ -29,7 +28,7 @@ Mesh Mesh::Regenerate(int lod)
     }
 }
 
-    Mesh Mesh::generateOrbit(int majorSegments, int minorSegments, Planet p, bool setup)
+    Mesh Mesh::generateOrbit(int majorSegments, int minorSegments, Building p, bool setup)
     {
         vector<Vertex> vertices;
         vector<unsigned int> indices;

@@ -2,21 +2,21 @@
 #include "Model.h"
 #include <GLFW/glfw3.h> // Include glfw3.h after our OpenGL definitions
 
-class Planet : public Model
+class Building : public Model
 {
 public:
     
-    std::list<std::shared_ptr<Planet>> children;
-    Planet* parent = nullptr;
+    std::list<std::shared_ptr<Building>> children;
+    Building* parent = nullptr;
     int Speed;
     float ModY;
     bool Generated = false;
     // constructor, expects a filepath to a 3D model.
-    Planet(string const& path, int speed) : Model(path)
+    Building() {};
+    Building(string const& path) : Model(path)
     {
-        this->Speed = speed;
         //ModX = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) /2;
-        if (static_cast <float> (rand()) / static_cast <float> (RAND_MAX) > 0.5)
+        /*if (static_cast <float> (rand()) / static_cast <float> (RAND_MAX) > 0.5)
         {
             transform.eulerRot.x = static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX) - 1 * 3;
         }
@@ -24,9 +24,9 @@ public:
         {
             transform.eulerRot.z = static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX) - 1 * 3;
         }
-        ModY = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        ModY = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);*/
     }
-    Planet(Mesh mesh, int speed=0) : Model(mesh)
+    Building(Mesh mesh, int speed=0) : Model(mesh)
     {
         this->Speed = speed;
         ModY = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
@@ -42,18 +42,18 @@ public:
         Generated = true;
     }
 
-    Planet GenerateOrbit()
+    Building GenerateOrbit()
     {
         Mesh m = Mesh::generateOrbit(30, 30, *this);
-        Planet orbit = Planet(m);
+        Building orbit = Building(m);
         orbit.transform.eulerRot = this->transform.eulerRot;
         return orbit;
     }
 
 
-    shared_ptr<Planet> addChild(Planet planet)
+    shared_ptr<Building> addChild(Building planet)
     {
-        shared_ptr<Planet> c = std::make_shared<Planet>(planet);
+        shared_ptr<Building> c = std::make_shared<Building>(planet);
         children.emplace_back(c);
         children.back()->parent = this;
         return c;

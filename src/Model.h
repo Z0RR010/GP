@@ -45,8 +45,10 @@ using namespace std;
 class Model
 {
 public:
+    Model() {};
     Model(string path)
     {
+        transformMatrix = transform.getLocalModelMatrix();
         loadModel(path);
     }
     Model(Mesh mesh)
@@ -55,8 +57,10 @@ public:
     }
     void Draw(Shader& shader);
     Transform transform;
+    glm::mat4 transformMatrix;
+    bool Instanced;
     vector<Mesh> meshes;
-private:
+public:
     // model data
     
     string directory;

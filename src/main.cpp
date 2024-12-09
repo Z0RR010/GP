@@ -9,7 +9,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include "Planet.h"
+#include "Building.h"
 #include "Camera.h"
 #include <ctime>
 
@@ -34,7 +34,7 @@ void imgui_begin();
 void imgui_render();
 void imgui_end();
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void HandleChildren(shared_ptr<Planet> p, Shader shader);
+void HandleChildren(shared_ptr<Building> p, Shader shader);
 void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 
@@ -42,7 +42,7 @@ void end_frame();
 
 constexpr int32_t WINDOW_WIDTH  = 1920;
 constexpr int32_t WINDOW_HEIGHT = 1080;
-
+int const number = 100;
 int Lod = 30;
 int oldLod = Lod;
 float RotationX = 0;
@@ -80,7 +80,7 @@ int main(int, char**)
     spdlog::info("Initialized ImGui.");
     glfwSetWindowUserPointer(window, &camera);
     glfwSetScrollCallback(window, scroll_callback);
-    //glfwSetCursorPosCallback(window, mouse_callback);
+    
     //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     srand(static_cast<unsigned>(time(0)));
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -88,107 +88,90 @@ int main(int, char**)
     //glEnable(GL_TEXTURE_2D);
     //glDisable(GL_CULL_FACE);
     // Main loop
+    Building floor = Building("res/models/Floor.obj");
+    Building house = Building("res/models/House.obj");
+    Building roof = Building("res/models/Roof.obj");
+    unsigned int houseVAO = house.meshes.at(0).VAO;
+    unsigned int roofVAO = roof.meshes.at(0).VAO;
+    unsigned int houseSize = house.meshes.at(0).indices.size();
+    unsigned int roofSize = roof.meshes.at(0).indices.size();
+    //cout << houseVAO << endl;
+    int total = number * number;
+    shared_ptr<Building>** houses = new shared_ptr<Building> * [number];
+    glm::mat4* houseMatricies = new glm::mat4[total];
+    for (int i = 0; i < number; ++i)
+        houses[i] = new shared_ptr<Building>[number];
+    shared_ptr<Building>** roofs = new shared_ptr<Building> *[number];
+    glm::mat4* roofMatricies = new glm::mat4[total];
+    for (int i = 0; i < number; ++i)
+        roofs[i] = new shared_ptr<Building>[number];
+    for (int i = 0; i < number; i++)
+    {
+        for (int j = 0; j < number; j++)
+        {
+            Building h = Building();
+            Building r = Building();
+            auto home = floor.addChild(h);
+            auto rof = home->addChild(r);
+            roofs[i][j] = rof;
+            houses[i][j] = home;
+            home->transform.scale = glm::vec3(0.5f);
+            rof->transform.scale = glm::vec3(2);
+            home->transform.pos = glm::vec3(2.6f * j, 0.0f, 2.6f * i);
+            rof->transform.pos = glm::vec3(0.0f, 1.0f, 0.0f);
+            home->updateSelfAndChild();
+            houseMatricies[i * number + j] = home->transform.modelMatrix;
+            roofMatricies[i * number + j] = rof->transform.modelMatrix;
+        }
+    }
+    unsigned int houseMatrixBuffer;
+    glGenBuffers(1, &houseMatrixBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, houseMatrixBuffer);
+    glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &houseMatricies[0], GL_STATIC_DRAW);
+
+            glBindVertexArray(houseVAO);
+            // set attribute pointers for matrix (4 times vec4)
+            glEnableVertexAttribArray(3);
+            glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+            glEnableVertexAttribArray(4);
+            glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
+            glEnableVertexAttribArray(5);
+            glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+            glEnableVertexAttribArray(6);
+            glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+
+            glVertexAttribDivisor(3, 1);
+            glVertexAttribDivisor(4, 1);
+            glVertexAttribDivisor(5, 1);
+            glVertexAttribDivisor(6, 1);
+
+            glBindVertexArray(0);
+            unsigned int roofMatrixBuffer;
+            glGenBuffers(1, &roofMatrixBuffer);
+            glBindBuffer(GL_ARRAY_BUFFER, roofMatrixBuffer);
+            glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &roofMatricies[0], GL_STATIC_DRAW);
+
+            glBindVertexArray(roofVAO);
+            // set attribute pointers for matrix (4 times vec4)
+            glEnableVertexAttribArray(3);
+            glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+            glEnableVertexAttribArray(4);
+            glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
+            glEnableVertexAttribArray(5);
+            glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+            glEnableVertexAttribArray(6);
+            glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+
+            glVertexAttribDivisor(3, 1);
+            glVertexAttribDivisor(4, 1);
+            glVertexAttribDivisor(5, 1);
+            glVertexAttribDivisor(6, 1);
+
+            glBindVertexArray(0);
+
+
     
-    Mesh cylinder = Mesh();
-    cylinder.generateCylinder(0.3f, 0.5f, 8);
-    Mesh cylinder2 = Mesh();
-    cylinder2.generateCylinder(1.0f, 2.0f, 20);
-    Mesh cylinder3 = Mesh();
-    cylinder3.generateCylinder(1.0f, 2.0f, 20);
-    Mesh cylinder4 = Mesh();
-    cylinder4.generateCylinder(1.0f, 2.0f, 20);
-    Mesh cylinder5 = Mesh();
-    cylinder5.generateCylinder(1.0f, 2.0f, 20);
-    Mesh cylinder6 = Mesh();
-    cylinder6.generateCylinder(1.0f, 2.0f, 20);
-    Planet gen = Planet(cylinder,5);
-    Planet planetDummy = Planet("res/models/dummy.obj", 10);
-    Planet sun = Planet("res/models/Sun.obj",2);
-    Planet earth = Planet("res/models/Earth.obj",8);
-    Planet moon = Planet("res/models/Planet.obj",10);
-    Planet neptune = Planet("res/models/Neptune.obj", 14);
-    Planet mars = Planet("res/models/Mars.obj", 10);
-    Planet mars2 = Planet("res/models/Mars.obj", 10);
-    Planet bigC = Planet(cylinder2, 4);
-    Planet cc = Planet(cylinder3, 7);
-    Planet ccc = Planet(cylinder4, 3);
-    Planet cccc = Planet(cylinder5, 1);
-    Planet ccccc = Planet(cylinder6, 9);
-    planetDummy.transform.scale = glm::vec3(0.1f);
-
-    neptune.transform.pos = glm::vec3(25.0f, 0.0f, 0.0f);
-    neptune.transform.scale = glm::vec3(2.5f);
-    Planet orbn = neptune.GenerateOrbit();
-
-    moon.transform.pos = glm::vec3(2.5f, 0.0f, 0.0f);
-    moon.transform.scale = glm::vec3(0.5f);
-    Planet orbm = moon.GenerateOrbit();
-
-
-    mars.transform.pos = glm::vec3(4.0f, 0.0f, 0.0f);
-    mars.transform.scale = glm::vec3(0.8f);
-    Planet orbm2 = mars.GenerateOrbit();
-    
-    gen.transform.pos = glm::vec3(0.0f, 0.0f, -5.0f);
-    Planet gorb = gen.GenerateOrbit();
-
-
-    earth.transform.pos = glm::vec3(-8.0f, 0.0f, 0.0f);
-    Planet orb = earth.GenerateOrbit();
-
-    bigC.transform.pos = glm::vec3(50.5f, 0.0f, 0.0f);
-    bigC.transform.scale = glm::vec3(1.5f);
-    Planet orbC = bigC.GenerateOrbit();
-    orbC.transform.eulerRot /= 5.0f;
-
-    mars2.transform.pos = glm::vec3(0.0f, 0.0f, -2.0f);
-    mars2.transform.scale = glm::vec3(0.3f);
-    Planet orbm3 = mars2.GenerateOrbit();
-
-    cc.transform.pos = glm::vec3(4.0f, 0.0f, 0.0f);
-    cc.transform.scale = glm::vec3(0.3f);
-    Planet orbcc = cc.GenerateOrbit();
-
-    ccc.transform.pos = glm::vec3(2.5f, 0.0f, 0.0f);
-    ccc.transform.scale = glm::vec3(0.5f);
-    Planet orbccc = ccc.GenerateOrbit();
-
-    cccc.transform.pos = glm::vec3(1.5f, 0.0f, 0.0f);
-    cccc.transform.scale = glm::vec3(0.2f);
-    Planet orbcccc = cccc.GenerateOrbit();
-
-    ccccc.transform.pos = glm::vec3(1.5f, 0.0f, 0.0f);
-    ccccc.transform.scale = glm::vec3(0.2f);
-    Planet orbccccc = ccccc.GenerateOrbit();
-    
-    auto s = planetDummy.addChild(sun);
-    auto e = planetDummy.addChild(earth);
-    
-    auto m = e->addChild(moon);
-    auto o = planetDummy.addChild(orb);
-    auto mo = e->addChild(orbm);
-    auto n = planetDummy.addChild(neptune);
-    auto no = planetDummy.addChild(orbn);
-    auto m2 = n->addChild(mars);
-    auto m2o = n->addChild(orbm2);
-
-    auto m3 = n->addChild(mars2);
-    auto m3o = n->addChild(orbm3);
-
-    auto C = planetDummy.addChild(bigC);
-    auto Co = planetDummy.addChild(orbC);
-    auto g = C->addChild(gen);
-    auto go = C->addChild(gorb);
-    auto cca = e->addChild(cc);
-    auto ccao = e->addChild(orbcc);
-    auto ccca = C->addChild(ccc);
-    auto cccao = C->addChild(orbccc);
-    auto cccca = m2->addChild(cccc);
-    auto ccccao = m2->addChild(orbcccc);
-    auto ccccca = m->addChild(ccccc);
-    auto cccccao = m->addChild(orbccccc);
-
-    list<Mesh> generatedMeshes = { cylinder, cylinder2, cylinder3, cylinder4, cylinder5, cylinder6 };//, norbit, morbit, m2orbit, gorbit, orbit, Corbit, m3orbit};
+    //list<Mesh> generatedMeshes = { cylinder, cylinder2, cylinder3, cylinder4, cylinder5, cylinder6 };//, norbit, morbit, m2orbit, gorbit, orbit, Corbit, m3orbit};
     while (!glfwWindowShouldClose(window))
     {
         
@@ -206,22 +189,6 @@ int main(int, char**)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         processInput(window);
-        if (oldLod != Lod)
-        {
-            vector<Mesh> newMeshes = vector<Mesh>();
-            for (auto m : generatedMeshes)
-            {
-                newMeshes.push_back(m.Regenerate(Lod));
-            }
-            g->meshes[0] = newMeshes[0];
-            C->meshes[0] = newMeshes[1];
-            cca->meshes[0] = newMeshes[2];
-            ccca->meshes[0] = newMeshes[3];
-            cccca->meshes[0] = newMeshes[4];
-            ccccca->meshes[0] = newMeshes[5];
-            oldLod = Lod;
-        }
-            
         
         
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 100.0f);
@@ -230,14 +197,23 @@ int main(int, char**)
         shader.setMat4("view", view);
         shader.setVec3("lightPos", glm::vec3(0.0f, 0.0f, 3.0f));
         //texture.setVec3("color", color);
-        planetDummy.transform.eulerRot.z = RotationZ;
-        planetDummy.transform.eulerRot.x = RotationX;
-        planetDummy.transform.eulerRot.y += 0.4;
-        planetDummy.updateSelfAndChild();
-        for (auto& p : planetDummy.children)
+        //floor.transform.eulerRot.z = RotationZ;
+        //floor.transform.eulerRot.x = RotationX;
+        //floor.transform.eulerRot.y += 0.4;
+        floor.updateSelfAndChild();
+        floor.Draw(shader);
+        shader.use();
+        if (house.textures_loaded.size())
+            glBindTexture(GL_TEXTURE_2D, house.textures_loaded[0].id);
+        glBindVertexArray(houseVAO);
+        glDrawElementsInstanced(GL_TRIANGLES, houseSize, GL_UNSIGNED_INT, 0, total);
+        if (roof.textures_loaded.size())
+            glBindTexture(GL_TEXTURE_2D, roof.textures_loaded[0].id);
+        glBindVertexArray(roofVAO);
+        glDrawElementsInstanced(GL_TRIANGLES, roofSize, GL_UNSIGNED_INT, 0, total);
+        for (auto& p : floor.children)
         {
-            p->Rotate();
-            p->Draw(shader);
+            //p->Draw(shader);
             if (p->children.size())
             {
                 HandleChildren(p, shader);
@@ -245,8 +221,8 @@ int main(int, char**)
         }
 
         
-
         
+            
 
 
         // Draw ImGui
@@ -269,13 +245,13 @@ int main(int, char**)
     return 0;
 }
 
-void HandleChildren(shared_ptr<Planet> p,Shader shader)
+void HandleChildren(shared_ptr<Building> p,Shader shader)
 {
     for (auto& c : p->children)
     {
 
         //cout << c->transform.modelMatrix[0][0] << endl;
-        c->Rotate();
+        //c->Rotate();
         c->Draw(shader);
 
         if (c->children.size())
@@ -361,7 +337,7 @@ bool init()
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable VSync - fixes FPS at the refresh rate of your screen
-
+    glfwSetCursorPosCallback(window, mouse_callback);
     bool err = !gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
     if (err)
@@ -460,7 +436,9 @@ void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-
+        
+    /*if (glfwGetKey(window, GLFW_KEY_Z))
+        glfwSetCursorPosCallback(window, nullptr);*/
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.ProcessKeyboard(FORWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -487,6 +465,10 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 
     lastX = xpos;
     lastY = ypos;
+    if (!ImGui::GetIO().WantCaptureMouse)
+    {
+        camera.ProcessMouseMovement(xoffset, yoffset);
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+            
+    }
 }
