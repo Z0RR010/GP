@@ -25,13 +25,15 @@ static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
-
+glm::vec3 GetPositionFromMatrix(const glm::mat4& matrix) {
+    return glm::vec3(matrix[3][0], matrix[3][1], matrix[3][2]);
+}
 
 bool init();
 void init_imgui();
 
 void imgui_begin();
-void imgui_render();
+void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs);
 void imgui_end();
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void HandleChildren(shared_ptr<Building> p, Shader shader);
@@ -54,7 +56,19 @@ Camera camera(glm::vec3(0.0f, 1.0f, 10.0f));
 float lastX = WINDOW_WIDTH / 2.0f;
 float lastY = WINDOW_HEIGHT / 2.0f;
 bool firstMouse = true;
+int selectType = 0;
+int selectNumber = 1;
+bool update = false;
+bool modWindow = false;
 
+ImVec4 red = ImVec4(1, 0, 0, 1);
+ImVec4 green = ImVec4(0, 1, 0, 1);
+Transform* selectedTransform;
+glm::mat4* houseMatricies = new glm::mat4[number * number];
+glm::mat4* roofMatricies = new glm::mat4[number * number];
+shared_ptr<Building> floorRoot;
+unsigned int houseMatrixBuffer;
+unsigned int roofMatrixBuffer;
 // timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -88,48 +102,58 @@ int main(int, char**)
     //glEnable(GL_TEXTURE_2D);
     //glDisable(GL_CULL_FACE);
     // Main loop
-    Building floor = Building("res/models/Floor.obj");
+    
+    floorRoot = make_shared<Building>(Building("res/models/Floor.obj"));
     Building house = Building("res/models/House.obj");
     Building roof = Building("res/models/Roof.obj");
+    Building light = Building("res/models/Light.obj");
     unsigned int houseVAO = house.meshes.at(0).VAO;
     unsigned int roofVAO = roof.meshes.at(0).VAO;
     unsigned int houseSize = house.meshes.at(0).indices.size();
     unsigned int roofSize = roof.meshes.at(0).indices.size();
     //cout << houseVAO << endl;
     int total = number * number;
-    shared_ptr<Building>** houses = new shared_ptr<Building> * [number];
-    glm::mat4* houseMatricies = new glm::mat4[total];
-    for (int i = 0; i < number; ++i)
-        houses[i] = new shared_ptr<Building>[number];
-    shared_ptr<Building>** roofs = new shared_ptr<Building> *[number];
-    glm::mat4* roofMatricies = new glm::mat4[total];
-    for (int i = 0; i < number; ++i)
-        roofs[i] = new shared_ptr<Building>[number];
+    shared_ptr<Building>* houses = new shared_ptr<Building> [total];
+    shared_ptr<Building>* lights = new shared_ptr<Building>[3];
+    //lights[0] = make_shared<Building>(light);
+    lights[0] = floorRoot->addChild(light);
+    lights[0]->transform.pos = glm::vec3(0.0f,2.0f,0.0f);
+    /*for (int i = 0; i < number; ++i)
+        houses[i] = new shared_ptr<Building>[number];*/
+    shared_ptr<Building>* roofs = new shared_ptr<Building>[total];
+    //for (int i = 0; i < number; ++i)
+    //    roofs[i] = new shared_ptr<Building>[number];
+    float floorScale = 1.0f;
+    float move = 10.0f * floorScale / number;
+    //floorRoot->transform.scale = glm::vec3(floorScale);
+    glGenBuffers(1, &houseMatrixBuffer);
+    glGenBuffers(1, &roofMatrixBuffer);
+
     for (int i = 0; i < number; i++)
     {
         for (int j = 0; j < number; j++)
         {
-            Building h = Building();
-            Building r = Building();
-            auto home = floor.addChild(h);
+            int n = i * number + j;
+            Building h = Building(houseMatrixBuffer,n);
+            Building r = Building(roofMatrixBuffer, n);
+            auto home = floorRoot->addChild(h);
             auto rof = home->addChild(r);
-            roofs[i][j] = rof;
-            houses[i][j] = home;
-            home->transform.scale = glm::vec3(0.5f);
-            rof->transform.scale = glm::vec3(2);
-            home->transform.pos = glm::vec3(2.6f * j, 0.0f, 2.6f * i);
-            rof->transform.pos = glm::vec3(0.0f, 1.0f, 0.0f);
+            roofs[n] = rof;
+            houses[n] = home;
+            home->transform.scale = glm::vec3(1.0f/number * floorScale);
+            //rof->transform.scale = glm::vec3(2);
+            home->transform.pos = glm::vec3(move * j, 0.0f, move * i) + glm::vec3(-(5.0f * floorScale - move/2),0.0f,-(5.0f * floorScale - move/2));
+            rof->transform.pos = glm::vec3(0.0f, 1.6f, 0.0f);
             home->updateSelfAndChild();
-            houseMatricies[i * number + j] = home->transform.modelMatrix;
-            roofMatricies[i * number + j] = rof->transform.modelMatrix;
+            houseMatricies[n] = home->transform.modelMatrix;
+            roofMatricies[n] = rof->transform.modelMatrix;
         }
     }
-    unsigned int houseMatrixBuffer;
-    glGenBuffers(1, &houseMatrixBuffer);
+    glBindVertexArray(houseVAO);
     glBindBuffer(GL_ARRAY_BUFFER, houseMatrixBuffer);
-    glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &houseMatricies[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &houseMatricies[0], GL_DYNAMIC_DRAW);
 
-            glBindVertexArray(houseVAO);
+            
             // set attribute pointers for matrix (4 times vec4)
             glEnableVertexAttribArray(3);
             glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
@@ -146,12 +170,12 @@ int main(int, char**)
             glVertexAttribDivisor(6, 1);
 
             glBindVertexArray(0);
-            unsigned int roofMatrixBuffer;
-            glGenBuffers(1, &roofMatrixBuffer);
-            glBindBuffer(GL_ARRAY_BUFFER, roofMatrixBuffer);
-            glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &roofMatricies[0], GL_STATIC_DRAW);
 
             glBindVertexArray(roofVAO);
+            glBindBuffer(GL_ARRAY_BUFFER, roofMatrixBuffer);
+            glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &roofMatricies[0], GL_DYNAMIC_DRAW);
+
+            
             // set attribute pointers for matrix (4 times vec4)
             glEnableVertexAttribArray(3);
             glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
@@ -169,8 +193,7 @@ int main(int, char**)
 
             glBindVertexArray(0);
 
-
-    
+    floorRoot->updateSelfAndChild();
     //list<Mesh> generatedMeshes = { cylinder, cylinder2, cylinder3, cylinder4, cylinder5, cylinder6 };//, norbit, morbit, m2orbit, gorbit, orbit, Corbit, m3orbit};
     while (!glfwWindowShouldClose(window))
     {
@@ -195,14 +218,30 @@ int main(int, char**)
         glm::mat4 view = camera.GetViewMatrix();
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
-        shader.setVec3("lightPos", glm::vec3(0.0f, 0.0f, 3.0f));
+        
+        shader.setVec3("lightPos", GetPositionFromMatrix(lights[0]->transform.modelMatrix));
         //texture.setVec3("color", color);
         //floor.transform.eulerRot.z = RotationZ;
         //floor.transform.eulerRot.x = RotationX;
         //floor.transform.eulerRot.y += 0.4;
-        floor.updateSelfAndChild();
-        floor.Draw(shader);
+        
+        floorRoot->Draw(shader);
         shader.use();
+        if (update)
+        {
+            //cout << houseMatrixBuffer << endl;
+            update = false;
+            /*glBindBuffer(GL_ARRAY_BUFFER, houseMatrixBuffer);
+
+            glm::mat4 retrievedMatrix;
+
+            glGetBufferSubData(GL_ARRAY_BUFFER, 0 * sizeof(glm::mat4), sizeof(glm::mat4), &retrievedMatrix);
+            cout << houses[0]->bufferVBO << endl;
+            houses[0]->bufferVBO = houseMatrixBuffer;
+            cout << houses[0]->bufferVBO << endl;*/
+            //cout << retrievedMatrix[0][0] << endl;
+
+        }
         if (house.textures_loaded.size())
             glBindTexture(GL_TEXTURE_2D, house.textures_loaded[0].id);
         glBindVertexArray(houseVAO);
@@ -211,14 +250,16 @@ int main(int, char**)
             glBindTexture(GL_TEXTURE_2D, roof.textures_loaded[0].id);
         glBindVertexArray(roofVAO);
         glDrawElementsInstanced(GL_TRIANGLES, roofSize, GL_UNSIGNED_INT, 0, total);
-        for (auto& p : floor.children)
-        {
-            //p->Draw(shader);
-            if (p->children.size())
-            {
-                HandleChildren(p, shader);
-            }
-        }
+        //glDrawArraysInstanced(GL_TRIANGLES, 0, roofSize, total);
+
+        //for (auto& p : floor.children)
+        //{
+        //    //p->Draw(shader);
+        //    if (p->children.size())
+        //    {
+        //        HandleChildren(p, shader);
+        //    }
+        //}
 
         
         
@@ -227,7 +268,7 @@ int main(int, char**)
 
         // Draw ImGui
         imgui_begin();
-        imgui_render(); // edit this function to add your own ImGui controls
+        imgui_render(houses,roofs); // edit this function to add your own ImGui controls
         imgui_end(); // this call effectively renders ImGui
         
         // End frame and swap buffers (double buffering)
@@ -260,56 +301,6 @@ void HandleChildren(shared_ptr<Building> p,Shader shader)
         }
     }
 }
-
-
-//void Cube(float x, float y, float z, float size ,Shader shader)
-//{
-//    glm::mat4 transform = glm::mat4(1.0f);
-//    transform = glm::rotate(transform, glm::radians(RotationY), glm::vec3(0.0f, 1.0f, 0.0f));
-//    transform = glm::rotate(transform, glm::radians(RotationX), glm::vec3(1.0f, 0.0f, 0.0f));
-//    transform = glm::translate(transform, glm::vec3(x, y, z));
-//    
-//    transform = glm::scale(transform, glm::vec3(size));
-//    shader.setMat4("transform", transform);
-//    shader.use();
-//    glBindTexture(GL_TEXTURE_2D, textureID);
-//    glBindVertexArray(VAO);
-//    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT,0);
-//}
-
-//void MengerSponge(float x, float y, float z, float size, int level, Shader shader)
-//{
-//    if (level == 0)
-//    {
-//        // Base case: Draw a single cube
-//        Cube(x, y, z, size, shader);
-//    }
-//    else
-//    {
-//        // Divide the current cube into 27 smaller cubes
-//        float newSize = size / 3.0f;
-//        for (int i = -1; i <= 1; ++i)
-//        {
-//            for (int j = -1; j <= 1; ++j)
-//            {
-//                for (int k = -1; k <= 1; ++k)
-//                {
-//                    // Skip the center cubes to create the holes in the sponge
-//                    if (abs(i) + abs(j) + abs(k) > 1)
-//                    {
-//                        MengerSponge(
-//                            x + i * newSize,
-//                            y + j * newSize,
-//                            z + k * newSize,
-//                            newSize,
-//                            level - 1, shader
-//                        );
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
 
 bool init()
 {
@@ -373,7 +364,7 @@ void imgui_begin()
     ImGui::NewFrame();
 }
 
-void imgui_render()
+void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs)
 {
     ///// Add new ImGui controls here
     //// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
@@ -386,10 +377,11 @@ void imgui_render()
         ImGui::Begin("Settings");                          // Create a window called "Hello, world!" and append into it.
 
         //ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-        ImGui::Checkbox("Wireframe mode", &wireframe);      // Edit bools storing our window open/close state
+        //ImGui::Checkbox("Wireframe mode", &wireframe);      // Edit bools storing our window open/close state
         //ImGui::Checkbox("Another Window", &show_another_window);
 
-        ImGui::SliderInt("Level of detail", &Lod, 1, 50);            // Edit 1 float using a slider from 0.0f to 1.0f
+        //ImGui::SliderInt("Level of detail", &Lod, 1, 50);            // Edit 1 float using a slider from 0.0f to 1.0f
+        ImGui::Checkbox("Modification window", &modWindow);
         //ImGui::InputInt("Level of detail", &Lod);
         //if (ImGui::InputInt("Level of detail", &Val)) {
         //        // Clamp the value to a range
@@ -397,11 +389,139 @@ void imgui_render()
         //    if (Val > 50) Val = 50;
         //}
         //Lod = Val;
-        ImGui::SliderFloat("Rotation Z", &RotationZ, 0.0f, 360.0f);
-        ImGui::SliderFloat("Rotation X", &RotationX, 0.0f, 360.0f);
+        //ImGui::SliderFloat("Rotation Z", &RotationZ, 0.0f, 360.0f);
+        //ImGui::SliderFloat("Rotation X", &RotationX, 0.0f, 360.0f);
         //ImGui::ColorEdit3("Color", (float*)&color); // Edit 3 floats representing a color
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::End();
+    }
+    if (modWindow)
+    {
+        ImGui::Begin("Modification window");
+        ImGui::Text("Choose object type to modify: ");
+        int max = 0;
+        if (ImGui::Button("Floor"))
+        {
+            selectType = 0;
+        }
+        if (selectType == 0)
+        {
+            ImGui::TextColored(green, "Chosen");
+        }
+        else
+        {
+            ImGui::TextColored(red, "Not chosen");
+        }
+        if (ImGui::Button("House"))
+        {
+            
+            selectType = 1;
+        }
+        if (selectType == 1)
+        {
+            max = number * number;
+            ImGui::TextColored(green, "Chosen");
+        }
+        else
+        {
+            ImGui::TextColored(red, "Not chosen");
+        }
+        if (ImGui::Button("Roof"))
+        {
+            
+            selectType = 2;
+        }
+        if (selectType == 2)
+        {
+            max = number * number;
+            ImGui::TextColored(green, "Chosen");
+        }
+        else
+        {
+            ImGui::TextColored(red, "Not chosen");
+        }
+        if (ImGui::Button("Camera"))
+        {
+            
+            selectType = 3;
+        }
+        if (selectType == 3)
+        {
+            max = 3;
+            ImGui::TextColored(green, "Chosen");
+        }
+        else
+        {
+            ImGui::TextColored(red, "Not chosen");
+        }
+        
+        ImGui::SliderInt("Number: ", &selectNumber,1,max);
+        //cout << selectNumber << endl;
+        shared_ptr<Building> chosen;
+        //Building* chosen;
+        if (selectType == 0)
+        {
+            chosen = floorRoot;
+        }
+        else if (selectType == 1)
+        {
+            chosen = houses[selectNumber-1];
+        }
+        else if (selectType == 2)
+        {
+            chosen = roofs[selectNumber - 1];
+        }
+        if (selectType == 3)
+        {
+            ImGui::End();
+            return;
+        }
+        
+        glm::vec3 tr = chosen->transform.pos;
+        glm::vec3 sc = chosen->transform.scale;
+        glm::vec3 ro = chosen->transform.eulerRot;
+        ImGui::SliderFloat("Translate X", &tr.x, -100.0f, 100.0f);
+        ImGui::SliderFloat("Translate Y", &tr.y, -100.0f, 100.0f);
+        ImGui::SliderFloat("Translate Z", &tr.z, -100.0f, 100.0f);
+        ImGui::SliderFloat("Scale X", &sc.x, 0.0f, 10.0f);
+        ImGui::SliderFloat("Scale Y", &sc.y, 0.0f, 10.0f);
+        ImGui::SliderFloat("Scale Z", &sc.z, 0.0f, 10.0f);
+        ImGui::SliderFloat("Rotation X", &ro.x, 0.0f, 360.0f);
+        ImGui::SliderFloat("Rotation Y", &ro.y, 0.0f, 360.0f);
+        ImGui::SliderFloat("Rotation Z", &ro.z, 0.0f, 360.0f);
+        
+        if (tr != chosen->transform.pos || sc != chosen->transform.scale || ro != chosen->transform.eulerRot)
+        {
+            cout << "T" << endl;
+            update = true;
+            chosen->transform.pos = tr;
+            chosen->transform.scale = sc;
+            chosen->transform.eulerRot = ro;
+            floorRoot->updateSelfAndChild();
+            /*if (selectType == 1)
+            {
+                glBindBuffer(GL_ARRAY_BUFFER, houseMatrixBuffer);
+                glBufferSubData(GL_ARRAY_BUFFER, selectNumber - 1 * sizeof(glm::mat4), sizeof(glm::mat4), &chosen->transform.modelMatrix);
+            }
+            else if (selectType == 2)
+            {
+                glBindBuffer(GL_ARRAY_BUFFER, roofMatrixBuffer);
+                glBufferSubData(GL_ARRAY_BUFFER, selectNumber - 1 * sizeof(glm::mat4), sizeof(glm::mat4), &chosen->transform.modelMatrix);
+            }*/
+            
+            
+        }
+        //floorRoot.updateSelfAndChild();
+        /*if (selectType == 1)
+        {
+            houseMatricies[selectNumber - 1] = chosen->transform.modelMatrix;
+        }
+        else if (selectType == 2)
+        {
+            roofMatricies[selectNumber - 1] = chosen->transform.modelMatrix;
+        }*/
+
         ImGui::End();
     }
 }

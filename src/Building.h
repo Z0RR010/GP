@@ -11,8 +11,18 @@ public:
     int Speed;
     float ModY;
     bool Generated = false;
+    bool indexed = false;
+    unsigned int bufferVBO;
+    int index;
     // constructor, expects a filepath to a 3D model.
     Building() {};
+    Building(int bufferVBO, int ID) : Model()
+    {
+        //meshes.at(0).VAO = VAO;
+        this->bufferVBO = bufferVBO;
+        index = ID;
+        indexed = true;
+    }
     Building(string const& path) : Model(path)
     {
         //ModX = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) /2;
@@ -58,11 +68,6 @@ public:
         children.back()->parent = this;
         return c;
     }
-
-    void Rotate()
-    {
-        transform.eulerRot.y += 0.1 * Speed * ModY;
-    }
     
     void updateSelfAndChild()
     {
@@ -73,6 +78,16 @@ public:
         }
         else
             transform.modelMatrix = transform.getLocalModelMatrix();
+        if (indexed)
+        {
+            //cout << bufferVBO << endl;
+            glBindBuffer(GL_ARRAY_BUFFER, bufferVBO);
+            
+            glBufferSubData(GL_ARRAY_BUFFER, index * sizeof(glm::mat4), sizeof(glm::mat4), &transform.modelMatrix); 
+            
+            //assert(transform.modelMatrix[0][0] == retrievedMatrix[0][0]);
+        }
+        
         
         for (auto& child : children)
         {
