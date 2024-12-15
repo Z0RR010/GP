@@ -33,7 +33,7 @@ bool init();
 void init_imgui();
 
 void imgui_begin();
-void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs);
+void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs, shared_ptr<Building>* lights, Shader shader);
 void imgui_end();
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void HandleChildren(shared_ptr<Building> p, Shader shader);
@@ -58,8 +58,15 @@ float lastY = WINDOW_HEIGHT / 2.0f;
 bool firstMouse = true;
 int selectType = 0;
 int selectNumber = 1;
-bool update = false;
+bool lightUpdate = false;
 bool modWindow = false;
+bool lightWindow = false;
+int selectLight = 1;
+float constantAtt = 1.0f;
+float linearAtt = 0.09f;
+float quadraticAtt = 0.032f;
+float ambientStrength = 0.5;
+glm::vec3 ambientColor = glm::vec3(1.0);
 
 ImVec4 red = ImVec4(1, 0, 0, 1);
 ImVec4 green = ImVec4(0, 1, 0, 1);
@@ -114,10 +121,52 @@ int main(int, char**)
     //cout << houseVAO << endl;
     int total = number * number;
     shared_ptr<Building>* houses = new shared_ptr<Building> [total];
-    shared_ptr<Building>* lights = new shared_ptr<Building>[3];
+    shared_ptr<Building>* lights = new shared_ptr<Building>[4];
     //lights[0] = make_shared<Building>(light);
     lights[0] = floorRoot->addChild(light);
-    lights[0]->transform.pos = glm::vec3(0.0f,2.0f,0.0f);
+    lights[0]->light.type = 0;
+    lights[0]->light.on = true; 
+    lights[0]->light.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
+    lights[0]->light.color = glm::vec3(1.0f, 1.0f, 1.0f);
+    lights[0]->light.intensity = 1.0f;
+    lights[0]->transform.pos = glm::vec3(0.0f,10.0f,0.0f);
+    lights[1] = floorRoot->addChild(light);
+    lights[1]->light.type = 1;
+    lights[1]->light.on = true; // Enabled
+    lights[1]->transform.pos = glm::vec3(0.0f, 1.0f, 5.0f);
+    lights[1]->light.color = glm::vec3(0.0f, 0.0f, 1.0f);
+    lights[1]->light.intensity = 1.0f;
+    lights[1]->light.rotate = true;
+    lights[2] = floorRoot->addChild(light);
+    lights[2]->light.type = 2;
+    lights[2]->light.on = true; // Enabled
+    lights[2]->transform.pos = glm::vec3(2.0f, 3.0f, 4.0f);
+    lights[2]->light.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
+    lights[2]->light.color = glm::vec3(1.0f, 1.0f, 0.0f);
+    lights[2]->light.intensity = 1.0f;
+    lights[2]->light.cutoff = glm::cos(glm::radians(12.5f));       // Inner cone angle
+    lights[2]->light.outerCutoff = glm::cos(glm::radians(17.5f));  // Outer cone angle
+    lights[3] = floorRoot->addChild(light);
+    lights[3]->light.type = 2;
+    lights[3]->light.on = true; // Enabled
+    lights[3]->transform.pos = glm::vec3(-2.0f, 3.0f, -4.0f);
+    lights[3]->light.direction = glm::vec3(-0.0f, -1.0f, -0.0f);
+    lights[3]->light.color = glm::vec3(1.0f, 0.0f, 0.0f);
+    lights[3]->light.intensity = 1.0f;
+    lights[3]->light.cutoff = glm::cos(glm::radians(12.5f));       // Inner cone angle
+    lights[3]->light.outerCutoff = glm::cos(glm::radians(17.5f));  // Outer cone angle
+    for (int i = 0; i < 4; i++)
+    {
+        lights[i]->transform.scale = glm::vec3(0.1f);
+        lights[i]->hasLight = true;
+    }
+    shader.use();
+    shader.setFloat("constantAttenuation", constantAtt);
+    shader.setFloat("linearAttenuation", linearAtt);
+    shader.setFloat("quadraticAttenuation", quadraticAtt);
+    shader.setFloat("ambientStrength", ambientStrength);
+    shader.setVec3("ambientColor", ambientColor);
+    //glEnable(GL_FRAMEBUFFER_SRGB);
     /*for (int i = 0; i < number; ++i)
         houses[i] = new shared_ptr<Building>[number];*/
     shared_ptr<Building>* roofs = new shared_ptr<Building>[total];
@@ -144,7 +193,7 @@ int main(int, char**)
             //rof->transform.scale = glm::vec3(2);
             home->transform.pos = glm::vec3(move * j, 0.0f, move * i) + glm::vec3(-(5.0f * floorScale - move/2),0.0f,-(5.0f * floorScale - move/2));
             rof->transform.pos = glm::vec3(0.0f, 1.6f, 0.0f);
-            home->updateSelfAndChild();
+            /*home->updateSelfAndChild();*/
             houseMatricies[n] = home->transform.modelMatrix;
             roofMatricies[n] = rof->transform.modelMatrix;
         }
@@ -192,8 +241,10 @@ int main(int, char**)
             glVertexAttribDivisor(6, 1);
 
             glBindVertexArray(0);
-
     floorRoot->updateSelfAndChild();
+    for (int i = 0; i < 4; ++i) {
+        shader.setLight(i, lights[i]->light);
+    }
     //list<Mesh> generatedMeshes = { cylinder, cylinder2, cylinder3, cylinder4, cylinder5, cylinder6 };//, norbit, morbit, m2orbit, gorbit, orbit, Corbit, m3orbit};
     while (!glfwWindowShouldClose(window))
     {
@@ -218,8 +269,8 @@ int main(int, char**)
         glm::mat4 view = camera.GetViewMatrix();
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
-        
-        shader.setVec3("lightPos", GetPositionFromMatrix(lights[0]->transform.modelMatrix));
+        shader.setVec3("viewPos", camera.Position);
+        //shader.setVec3("lightPos", GetPositionFromMatrix(lights[0]->transform.modelMatrix));
         //texture.setVec3("color", color);
         //floor.transform.eulerRot.z = RotationZ;
         //floor.transform.eulerRot.x = RotationX;
@@ -227,21 +278,8 @@ int main(int, char**)
         
         floorRoot->Draw(shader);
         shader.use();
-        if (update)
-        {
-            //cout << houseMatrixBuffer << endl;
-            update = false;
-            /*glBindBuffer(GL_ARRAY_BUFFER, houseMatrixBuffer);
 
-            glm::mat4 retrievedMatrix;
 
-            glGetBufferSubData(GL_ARRAY_BUFFER, 0 * sizeof(glm::mat4), sizeof(glm::mat4), &retrievedMatrix);
-            cout << houses[0]->bufferVBO << endl;
-            houses[0]->bufferVBO = houseMatrixBuffer;
-            cout << houses[0]->bufferVBO << endl;*/
-            //cout << retrievedMatrix[0][0] << endl;
-
-        }
         if (house.textures_loaded.size())
             glBindTexture(GL_TEXTURE_2D, house.textures_loaded[0].id);
         glBindVertexArray(houseVAO);
@@ -251,7 +289,31 @@ int main(int, char**)
         glBindVertexArray(roofVAO);
         glDrawElementsInstanced(GL_TRIANGLES, roofSize, GL_UNSIGNED_INT, 0, total);
         //glDrawArraysInstanced(GL_TRIANGLES, 0, roofSize, total);
+        for (int i = 0; i < 4; i++)
+        {
+            if (lights[i]->light.draw)
+            {
+                lights[i]->Draw(shader);
+            }
+        }
+        if (lights[1]->light.rotate)
+        {
+            static float angle = 0.0f;
+            angle += lights[1]->light.speed * deltaTime; // Update angle based on time and speed
 
+            // Ensure angle wraps around after a full circle
+            if (angle > 2.0f * M_PI) {
+                angle -= 2.0f * M_PI;
+            }
+
+            // Compute new position
+            //lights[1]->transform.pos.x += 
+            lights[1]->transform.pos.y = lights[1]->light.radius * cos(angle);
+            lights[1]->transform.pos.z = lights[1]->light.radius * sin(angle);
+            lights[1]->dirty = true;
+            lights[1]->updateSelfAndChild();
+            shader.setLight(1, lights[1]->light);
+        }
         //for (auto& p : floor.children)
         //{
         //    //p->Draw(shader);
@@ -268,7 +330,7 @@ int main(int, char**)
 
         // Draw ImGui
         imgui_begin();
-        imgui_render(houses,roofs); // edit this function to add your own ImGui controls
+        imgui_render(houses,roofs,lights,shader); // edit this function to add your own ImGui controls
         imgui_end(); // this call effectively renders ImGui
         
         // End frame and swap buffers (double buffering)
@@ -364,7 +426,7 @@ void imgui_begin()
     ImGui::NewFrame();
 }
 
-void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs)
+void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs, shared_ptr<Building>* lights, Shader shader)
 {
     ///// Add new ImGui controls here
     //// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
@@ -381,7 +443,8 @@ void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs)
         //ImGui::Checkbox("Another Window", &show_another_window);
 
         //ImGui::SliderInt("Level of detail", &Lod, 1, 50);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::Checkbox("Modification window", &modWindow);
+        ImGui::Checkbox("Object modification window", &modWindow);
+        ImGui::Checkbox("Light modification window", &lightWindow);
         //ImGui::InputInt("Level of detail", &Lod);
         //if (ImGui::InputInt("Level of detail", &Val)) {
         //        // Clamp the value to a range
@@ -441,22 +504,8 @@ void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs)
         {
             ImGui::TextColored(red, "Not chosen");
         }
-        if (ImGui::Button("Camera"))
-        {
-            
-            selectType = 3;
-        }
-        if (selectType == 3)
-        {
-            max = 3;
-            ImGui::TextColored(green, "Chosen");
-        }
-        else
-        {
-            ImGui::TextColored(red, "Not chosen");
-        }
-        
-        ImGui::SliderInt("Number: ", &selectNumber,1,max);
+
+        ImGui::SliderInt("Number ", &selectNumber,1,max);
         //cout << selectNumber << endl;
         shared_ptr<Building> chosen;
         //Building* chosen;
@@ -472,11 +521,7 @@ void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs)
         {
             chosen = roofs[selectNumber - 1];
         }
-        if (selectType == 3)
-        {
-            ImGui::End();
-            return;
-        }
+
         
         glm::vec3 tr = chosen->transform.pos;
         glm::vec3 sc = chosen->transform.scale;
@@ -493,35 +538,129 @@ void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs)
         
         if (tr != chosen->transform.pos || sc != chosen->transform.scale || ro != chosen->transform.eulerRot)
         {
-            cout << "T" << endl;
-            update = true;
             chosen->transform.pos = tr;
             chosen->transform.scale = sc;
             chosen->transform.eulerRot = ro;
+            chosen->dirty = true;
             floorRoot->updateSelfAndChild();
-            /*if (selectType == 1)
+            if (selectType == 0)
             {
-                glBindBuffer(GL_ARRAY_BUFFER, houseMatrixBuffer);
-                glBufferSubData(GL_ARRAY_BUFFER, selectNumber - 1 * sizeof(glm::mat4), sizeof(glm::mat4), &chosen->transform.modelMatrix);
+                for (int i = 0; i < 4; i++)
+                {
+                    shader.setLight(i, lights[i]->light);
+                }
             }
-            else if (selectType == 2)
-            {
-                glBindBuffer(GL_ARRAY_BUFFER, roofMatrixBuffer);
-                glBufferSubData(GL_ARRAY_BUFFER, selectNumber - 1 * sizeof(glm::mat4), sizeof(glm::mat4), &chosen->transform.modelMatrix);
-            }*/
-            
-            
         }
-        //floorRoot.updateSelfAndChild();
-        /*if (selectType == 1)
-        {
-            houseMatricies[selectNumber - 1] = chosen->transform.modelMatrix;
-        }
-        else if (selectType == 2)
-        {
-            roofMatricies[selectNumber - 1] = chosen->transform.modelMatrix;
-        }*/
 
+        ImGui::End();
+    }
+    if (lightWindow)
+    {
+        ImGui::Begin("Light window");
+        ImGui::Text("Shared settings: ");
+        if (ImGui::SliderFloat("Constant attenuation", &constantAtt, 0.0f, 10.0f))
+        {
+            shader.setFloat("constantAttenuation", constantAtt);
+        }
+        if (ImGui::SliderFloat("Linear attenuation", &linearAtt, 0.0f, 10.0f))
+        {
+            shader.setFloat("linearAttenuation", linearAtt);
+        }
+        if (ImGui::SliderFloat("Quadratic attenuation", &quadraticAtt, 0.0f, 10.0f))
+        {
+            shader.setFloat("quadraticAttenuation", quadraticAtt);
+        }
+        if (ImGui::SliderFloat("Ambient strength", &ambientStrength, 0.0f, 10.0f))
+        {
+            shader.setFloat("ambientStrength", ambientStrength);
+        }
+        if (ImGui::ColorEdit3("Ambient color", (float*)&ambientColor))
+        {
+            shader.setVec3("ambientColor", ambientColor);
+        }
+        ImGui::Text("Choose light to modify: ");
+        ImGui::SliderInt("Number ", &selectLight, 1, 4);
+        shared_ptr<Building> chosen = lights[selectLight-1];
+        Light* l = &chosen->light;
+        if (l->type == 0)
+        {
+            ImGui::Text("Light type: directional");
+        }
+        else if (l->type == 1)
+        {
+            ImGui::Text("Light type: point");
+        }
+        else if (l->type == 2)
+        {
+            ImGui::Text("Light type: spotlight");
+        }
+        glm::vec3 tr = chosen->transform.pos;
+        glm::vec3 dir = l->direction;
+        glm::vec3 color = l->color;
+        bool on = l->on;
+        float in = l->intensity;
+        float c = chosen->cutoff;
+        float oc = chosen->ocutoff;
+        bool rot = l->rotate;
+        float rad = l->radius;
+        float sp = l->speed;
+        bool vi = l->draw;
+        ImGui::Checkbox("Enabled", &on);
+        ImGui::Checkbox("Visualization", &vi);
+        if (on)
+        {
+            if (l->type != 0)
+            {
+                ImGui::SliderFloat("Position X", &tr.x, -100.0f, 100.0f);
+                ImGui::SliderFloat("Position Y", &tr.y, -100.0f, 100.0f);
+                ImGui::SliderFloat("Position Z", &tr.z, -100.0f, 100.0f);
+            }
+            if (l->type != 1)
+            {
+                ImGui::SliderFloat("Direction X", &dir.x, -1.0f, 1.0f);
+                ImGui::SliderFloat("Direction Y", &dir.y, -1.0f, 1.0f);
+                ImGui::SliderFloat("Direction Z", &dir.z, -1.0f, 1.0f);
+            }
+            ImGui::ColorEdit3("Color", (float*)&color);
+            ImGui::SliderFloat("Intensity", &in, 0.0f, 100.0f);
+            if (l->type == 2)
+            {
+                ImGui::SliderFloat("Cutoff angle: ", &c, 0.0f, 180.0f);
+                ImGui::SliderFloat("Outer cutoff angle: ", &oc, 0.0f, 180.0f);
+            }
+            if (l->type == 1)
+            {
+                ImGui::Checkbox("Rotation", &rot);
+                if (rot)
+                {
+                    ImGui::SliderFloat("Speed", &sp, -10.0f, 10.0f);
+                    ImGui::SliderFloat("Radius", &rad, 0.0f, 20.0f);
+                }
+            }
+        }
+        
+
+        if (tr != chosen->transform.pos || dir != chosen->light.direction || color != chosen->light.color ||
+            on != chosen->light.on || in != chosen->light.intensity || c != chosen->cutoff || oc != chosen->ocutoff ||
+            rot != chosen->light.rotate || sp != chosen->light.speed || rad != chosen->light.radius || vi != chosen->light.draw)
+        {
+            //lightUpdate = true;
+            chosen->transform.pos = tr;
+            chosen->light.direction = dir;
+            chosen->light.color = color;
+            chosen->light.on = on;
+            chosen->light.intensity = in;
+            chosen->cutoff = c;
+            chosen->ocutoff = oc;
+            chosen->light.rotate = rot;
+            chosen->light.radius = rad;
+            chosen->light.speed = sp;
+            chosen->light.draw = vi;
+            chosen->dirty = true;
+            floorRoot->updateSelfAndChild();
+            shader.setLight(selectLight - 1, chosen->light);
+
+        }
         ImGui::End();
     }
 }

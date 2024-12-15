@@ -25,5 +25,13 @@ void main()
    
    FragPos = vec3(model * vec4(aPos, 1.0));
    TexCoord = aTexCoord;
-	Normal = mat3(transpose(inverse(model))) * aNormal;  
+   if (model[0][0] == 0.0f)
+   {
+   Normal = mat3(transpose(inverse(instanceMatrix))) * aNormal; 
+   }
+   else
+   {
+   Normal = mat3(transpose(inverse(model))) * aNormal; 
+   }
+	 
 }

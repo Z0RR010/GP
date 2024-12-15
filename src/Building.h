@@ -4,6 +4,10 @@
 
 class Building : public Model
 {
+private:
+    glm::vec3 GetPositionFromMatrix(const glm::mat4& matrix) {
+        return glm::vec3(matrix[3][0], matrix[3][1], matrix[3][2]);
+    }
 public:
     
     std::list<std::shared_ptr<Building>> children;
@@ -14,6 +18,11 @@ public:
     bool indexed = false;
     unsigned int bufferVBO;
     int index;
+    Light light;
+    bool hasLight = false;
+    bool dirty = true;
+    float cutoff = 12.5;
+    float ocutoff = 17.5;
     // constructor, expects a filepath to a 3D model.
     Building() {};
     Building(int bufferVBO, int ID) : Model()
@@ -52,13 +61,13 @@ public:
         Generated = true;
     }
 
-    Building GenerateOrbit()
-    {
-        Mesh m = Mesh::generateOrbit(30, 30, *this);
-        Building orbit = Building(m);
-        orbit.transform.eulerRot = this->transform.eulerRot;
-        return orbit;
-    }
+    //Building GenerateOrbit()
+    //{
+    //    Mesh m = Mesh::generateOrbit(30, 30, *this);
+    //    Building orbit = Building(m);
+    //    orbit.transform.eulerRot = this->transform.eulerRot;
+    //    return orbit;
+    //}
 
 
     shared_ptr<Building> addChild(Building planet)
@@ -71,29 +80,59 @@ public:
     
     void updateSelfAndChild()
     {
-        
-        if (parent)
+
+        if (parent && parent->dirty)
         {
-            transform.modelMatrix = transform.computeModelMatrix(parent->transform.modelMatrix);
+            dirty = true;
+        }
+        if (!hasLight)
+        {
+            if (dirty)
+            {
+                if (parent)
+                {
+                    transform.modelMatrix = transform.computeModelMatrix(parent->transform.modelMatrix);
+                }
+                else
+                    transform.modelMatrix = transform.getLocalModelMatrix();
+                if (indexed)
+                {
+                    //cout << bufferVBO << endl;
+                    glBindBuffer(GL_ARRAY_BUFFER, bufferVBO);
+
+                    glBufferSubData(GL_ARRAY_BUFFER, index * sizeof(glm::mat4), sizeof(glm::mat4), &transform.modelMatrix);
+
+                    //assert(transform.modelMatrix[0][0] == retrievedMatrix[0][0]);
+                }
+            }
         }
         else
-            transform.modelMatrix = transform.getLocalModelMatrix();
-        if (indexed)
         {
-            //cout << bufferVBO << endl;
-            glBindBuffer(GL_ARRAY_BUFFER, bufferVBO);
-            
-            glBufferSubData(GL_ARRAY_BUFFER, index * sizeof(glm::mat4), sizeof(glm::mat4), &transform.modelMatrix); 
-            
-            //assert(transform.modelMatrix[0][0] == retrievedMatrix[0][0]);
+            if (dirty)
+            {
+                if (parent)
+                {
+                    transform.modelMatrix = transform.getLocalModelMatrix();
+                    light.position = GetPositionFromMatrix(transform.computeModelMatrix(parent->transform.modelMatrix));
+                    transform.modelMatrix = transform.computeModelMatrix(parent->transform.modelMatrix);
+                }
+                else
+                {
+                    light.position = transform.pos;
+                }
+                light.cutoff = glm::cos(glm::radians(cutoff));
+                light.outerCutoff = glm::cos(glm::radians(ocutoff));
+            }
         }
+        
         
         
         for (auto& child : children)
         {
             child->updateSelfAndChild();
         }
+        dirty = false;
     }
-
+    
 };
 
