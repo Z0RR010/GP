@@ -28,7 +28,39 @@ static void glfw_error_callback(int error, const char* description)
 glm::vec3 GetPositionFromMatrix(const glm::mat4& matrix) {
     return glm::vec3(matrix[3][0], matrix[3][1], matrix[3][2]);
 }
+//glm::vec2 getRotationFromDirection(const glm::vec3& direction) {
+//    glm::vec2 rotation;
+//
+//    // Ensure the direction vector is normalized
+//    glm::vec3 normalizedDirection = glm::normalize(direction);
+//
+//    // Calculate yaw (theta)
+//    rotation.x = glm::degrees(atan2(normalizedDirection.y, normalizedDirection.x));
+//
+//    // Calculate pitch (phi)
+//    rotation.y = glm::degrees(asin(normalizedDirection.z));
+//
+//    return rotation; // (yaw, pitch)
+//}
+glm::vec3 calculateRotation(const glm::vec3& direction) 
+{
+    glm::vec3 mult;
+    if (direction.z > 0.0)
+    {
+        mult = glm::vec3(-1, -1, 1);
+    }
+    else
+    {
+        mult = glm::vec3(1);
+    }
+    glm::vec3 dn = glm::normalize(direction);
+    glm::vec3 up = glm::vec3(0, 1, 0);
+    glm::quat rotation = glm::quatLookAt(direction, up);
+    glm::vec3 euler = glm::eulerAngles(rotation);
+    euler = glm::degrees(euler);
 
+    return euler * mult;
+}
 bool init();
 void init_imgui();
 
@@ -114,6 +146,7 @@ int main(int, char**)
     Building house = Building("res/models/House.obj");
     Building roof = Building("res/models/Roof.obj");
     Building light = Building("res/models/Light.obj");
+    Building lightD = Building("res/models/LightD.obj");
     unsigned int houseVAO = house.meshes.at(0).VAO;
     unsigned int roofVAO = roof.meshes.at(0).VAO;
     unsigned int houseSize = house.meshes.at(0).indices.size();
@@ -123,7 +156,7 @@ int main(int, char**)
     shared_ptr<Building>* houses = new shared_ptr<Building> [total];
     shared_ptr<Building>* lights = new shared_ptr<Building>[4];
     //lights[0] = make_shared<Building>(light);
-    lights[0] = floorRoot->addChild(light);
+    lights[0] = floorRoot->addChild(lightD);
     lights[0]->light.type = 0;
     lights[0]->light.on = true; 
     lights[0]->light.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
@@ -137,7 +170,7 @@ int main(int, char**)
     lights[1]->light.color = glm::vec3(0.0f, 0.0f, 1.0f);
     lights[1]->light.intensity = 1.0f;
     lights[1]->light.rotate = true;
-    lights[2] = floorRoot->addChild(light);
+    lights[2] = floorRoot->addChild(lightD);
     lights[2]->light.type = 2;
     lights[2]->light.on = true; // Enabled
     lights[2]->transform.pos = glm::vec3(2.0f, 3.0f, 4.0f);
@@ -146,7 +179,7 @@ int main(int, char**)
     lights[2]->light.intensity = 1.0f;
     lights[2]->light.cutoff = glm::cos(glm::radians(12.5f));       // Inner cone angle
     lights[2]->light.outerCutoff = glm::cos(glm::radians(17.5f));  // Outer cone angle
-    lights[3] = floorRoot->addChild(light);
+    lights[3] = floorRoot->addChild(lightD);
     lights[3]->light.type = 2;
     lights[3]->light.on = true; // Enabled
     lights[3]->transform.pos = glm::vec3(-2.0f, 3.0f, -4.0f);
@@ -157,7 +190,8 @@ int main(int, char**)
     lights[3]->light.outerCutoff = glm::cos(glm::radians(17.5f));  // Outer cone angle
     for (int i = 0; i < 4; i++)
     {
-        lights[i]->transform.scale = glm::vec3(0.1f);
+        lights[i]->transform.scale = glm::vec3(0.05f);
+        lights[i]->transform.eulerRot = calculateRotation(lights[i]->light.direction);
         lights[i]->hasLight = true;
     }
     shader.use();
@@ -299,9 +333,8 @@ int main(int, char**)
         if (lights[1]->light.rotate)
         {
             static float angle = 0.0f;
-            angle += lights[1]->light.speed * deltaTime; // Update angle based on time and speed
+            angle += lights[1]->light.speed * deltaTime; 
 
-            // Ensure angle wraps around after a full circle
             if (angle > 2.0f * M_PI) {
                 angle -= 2.0f * M_PI;
             }
@@ -657,6 +690,15 @@ void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs, sha
             chosen->light.speed = sp;
             chosen->light.draw = vi;
             chosen->dirty = true;
+            if (l->type != 1)
+            {
+                //auto rot = getRotationFromDirection(dir);
+                auto rot = calculateRotation(dir);
+                //cout << rot[0] << " " << rot[1] << " " << rot[2] << endl;
+                //auto rot = getEulerAnglesFromMatrix(chosen->transformMatrix);
+                chosen->transform.eulerRot = rot;
+                //chosen->transform.eulerRot.z = rot.z;
+            }
             floorRoot->updateSelfAndChild();
             shader.setLight(selectLight - 1, chosen->light);
 
