@@ -6,6 +6,14 @@
 #include "Mesh.h"
 #include <string>
 #include <glm/gtc/matrix_transform.hpp>
+enum MovementDirection {
+    FORWARD,
+    BACKWARD,
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN
+};
 struct Transform
 {
     /*SPACE INFORMATION*/

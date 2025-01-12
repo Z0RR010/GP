@@ -10,6 +10,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Building.h"
+#include "Helicopter.h"
 #include "Camera.h"
 #include <ctime>
 
@@ -82,6 +83,7 @@ int oldLod = Lod;
 float RotationX = 0;
 float RotationZ = 0;
 bool wireframe = false;
+bool freeCamera = true;
 
 GLFWwindow* window = nullptr;
 Camera camera(glm::vec3(0.0f, 1.0f, 10.0f));
@@ -119,6 +121,7 @@ constexpr int32_t GL_VERSION_MINOR = 6;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 unsigned int VAO;
 unsigned int textureID;
+Helicopter helicopter;
 
 int main(int, char**)
 {
@@ -151,6 +154,7 @@ int main(int, char**)
     unsigned int roofVAO = roof.meshes.at(0).VAO;
     unsigned int houseSize = house.meshes.at(0).indices.size();
     unsigned int roofSize = roof.meshes.at(0).indices.size();
+    helicopter = Helicopter(glm::vec3(0, 10, 0));
     //cout << houseVAO << endl;
     int total = number * number;
     shared_ptr<Building>* houses = new shared_ptr<Building> [total];
@@ -209,73 +213,73 @@ int main(int, char**)
     float floorScale = 1.0f;
     float move = 10.0f * floorScale / number;
     //floorRoot->transform.scale = glm::vec3(floorScale);
-    glGenBuffers(1, &houseMatrixBuffer);
-    glGenBuffers(1, &roofMatrixBuffer);
+    /*glGenBuffers(1, &houseMatrixBuffer);
+    glGenBuffers(1, &roofMatrixBuffer);*/
 
-    for (int i = 0; i < number; i++)
-    {
-        for (int j = 0; j < number; j++)
-        {
-            int n = i * number + j;
-            Building h = Building(houseMatrixBuffer,n);
-            Building r = Building(roofMatrixBuffer, n);
-            auto home = floorRoot->addChild(h);
-            auto rof = home->addChild(r);
-            roofs[n] = rof;
-            houses[n] = home;
-            home->transform.scale = glm::vec3(1.0f/number * floorScale);
-            //rof->transform.scale = glm::vec3(2);
-            home->transform.pos = glm::vec3(move * j, 0.0f, move * i) + glm::vec3(-(5.0f * floorScale - move/2),0.0f,-(5.0f * floorScale - move/2));
-            rof->transform.pos = glm::vec3(0.0f, 1.6f, 0.0f);
-            /*home->updateSelfAndChild();*/
-            houseMatricies[n] = home->transform.modelMatrix;
-            roofMatricies[n] = rof->transform.modelMatrix;
-        }
-    }
-    glBindVertexArray(houseVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, houseMatrixBuffer);
-    glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &houseMatricies[0], GL_DYNAMIC_DRAW);
+    //for (int i = 0; i < number; i++)
+    //{
+    //    for (int j = 0; j < number; j++)
+    //    {
+    //        int n = i * number + j;
+    //        Building h = Building(houseMatrixBuffer,n);
+    //        Building r = Building(roofMatrixBuffer, n);
+    //        auto home = floorRoot->addChild(h);
+    //        auto rof = home->addChild(r);
+    //        roofs[n] = rof;
+    //        houses[n] = home;
+    //        home->transform.scale = glm::vec3(1.0f/number * floorScale);
+    //        //rof->transform.scale = glm::vec3(2);
+    //        home->transform.pos = glm::vec3(move * j, 0.0f, move * i) + glm::vec3(-(5.0f * floorScale - move/2),0.0f,-(5.0f * floorScale - move/2));
+    //        rof->transform.pos = glm::vec3(0.0f, 1.6f, 0.0f);
+    //        /*home->updateSelfAndChild();*/
+    //        houseMatricies[n] = home->transform.modelMatrix;
+    //        roofMatricies[n] = rof->transform.modelMatrix;
+    //    }
+    //}
+    //glBindVertexArray(houseVAO);
+    //glBindBuffer(GL_ARRAY_BUFFER, houseMatrixBuffer);
+    //glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &houseMatricies[0], GL_DYNAMIC_DRAW);
 
-            
-            // set attribute pointers for matrix (4 times vec4)
-            glEnableVertexAttribArray(3);
-            glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
-            glEnableVertexAttribArray(4);
-            glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
-            glEnableVertexAttribArray(5);
-            glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
-            glEnableVertexAttribArray(6);
-            glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+    //        
+    //        // set attribute pointers for matrix (4 times vec4)
+    //        glEnableVertexAttribArray(3);
+    //        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+    //        glEnableVertexAttribArray(4);
+    //        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
+    //        glEnableVertexAttribArray(5);
+    //        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+    //        glEnableVertexAttribArray(6);
+    //        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
 
-            glVertexAttribDivisor(3, 1);
-            glVertexAttribDivisor(4, 1);
-            glVertexAttribDivisor(5, 1);
-            glVertexAttribDivisor(6, 1);
+    //        glVertexAttribDivisor(3, 1);
+    //        glVertexAttribDivisor(4, 1);
+    //        glVertexAttribDivisor(5, 1);
+    //        glVertexAttribDivisor(6, 1);
 
-            glBindVertexArray(0);
+    //        glBindVertexArray(0);
 
-            glBindVertexArray(roofVAO);
-            glBindBuffer(GL_ARRAY_BUFFER, roofMatrixBuffer);
-            glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &roofMatricies[0], GL_DYNAMIC_DRAW);
+    //        glBindVertexArray(roofVAO);
+    //        glBindBuffer(GL_ARRAY_BUFFER, roofMatrixBuffer);
+    //        glBufferData(GL_ARRAY_BUFFER, total * sizeof(glm::mat4), &roofMatricies[0], GL_DYNAMIC_DRAW);
 
-            
-            // set attribute pointers for matrix (4 times vec4)
-            glEnableVertexAttribArray(3);
-            glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
-            glEnableVertexAttribArray(4);
-            glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
-            glEnableVertexAttribArray(5);
-            glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
-            glEnableVertexAttribArray(6);
-            glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+    //        
+    //        // set attribute pointers for matrix (4 times vec4)
+    //        glEnableVertexAttribArray(3);
+    //        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+    //        glEnableVertexAttribArray(4);
+    //        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
+    //        glEnableVertexAttribArray(5);
+    //        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+    //        glEnableVertexAttribArray(6);
+    //        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
 
-            glVertexAttribDivisor(3, 1);
-            glVertexAttribDivisor(4, 1);
-            glVertexAttribDivisor(5, 1);
-            glVertexAttribDivisor(6, 1);
+    //        glVertexAttribDivisor(3, 1);
+    //        glVertexAttribDivisor(4, 1);
+    //        glVertexAttribDivisor(5, 1);
+    //        glVertexAttribDivisor(6, 1);
 
-            glBindVertexArray(0);
-    floorRoot->updateSelfAndChild();
+    //        glBindVertexArray(0);
+    //floorRoot->updateSelfAndChild();
     for (int i = 0; i < 4; ++i) {
         shader.setLight(i, lights[i]->light);
     }
@@ -314,14 +318,14 @@ int main(int, char**)
         shader.use();
 
 
-        if (house.textures_loaded.size())
+        /*if (house.textures_loaded.size())
             glBindTexture(GL_TEXTURE_2D, house.textures_loaded[0].id);
         glBindVertexArray(houseVAO);
         glDrawElementsInstanced(GL_TRIANGLES, houseSize, GL_UNSIGNED_INT, 0, total);
         if (roof.textures_loaded.size())
             glBindTexture(GL_TEXTURE_2D, roof.textures_loaded[0].id);
         glBindVertexArray(roofVAO);
-        glDrawElementsInstanced(GL_TRIANGLES, roofSize, GL_UNSIGNED_INT, 0, total);
+        glDrawElementsInstanced(GL_TRIANGLES, roofSize, GL_UNSIGNED_INT, 0, total);*/
         //glDrawArraysInstanced(GL_TRIANGLES, 0, roofSize, total);
         for (int i = 0; i < 4; i++)
         {
@@ -741,13 +745,35 @@ void processInput(GLFWwindow* window)
     /*if (glfwGetKey(window, GLFW_KEY_Z))
         glfwSetCursorPosCallback(window, nullptr);*/
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
         camera.ProcessKeyboard(FORWARD, deltaTime);
+        helicopter.Move(FORWARD);
+    }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
         camera.ProcessKeyboard(BACKWARD, deltaTime);
+        helicopter.Move(BACKWARD);
+    }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
         camera.ProcessKeyboard(LEFT, deltaTime);
+        helicopter.Move(LEFT);
+    }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    {
         camera.ProcessKeyboard(RIGHT, deltaTime);
+        helicopter.Move(RIGHT);
+    }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == 1)
+    {
+        camera.ProcessKeyboard(UP, deltaTime);
+        helicopter.Move(UP);
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == 1)
+    {
+        helicopter.Move(DOWN);
+        camera.ProcessKeyboard(DOWN, deltaTime);
+    }
 }
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
@@ -768,8 +794,10 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     lastY = ypos;
     if (!ImGui::GetIO().WantCaptureMouse)
     {
-        camera.ProcessMouseMovement(xoffset, yoffset);
-
+        if (freeCamera)
+            camera.ProcessMouseMovement(xoffset, yoffset);
+        else
+            printf("c");
             
     }
 }
