@@ -154,7 +154,8 @@ int main(int, char**)
     unsigned int roofVAO = roof.meshes.at(0).VAO;
     unsigned int houseSize = house.meshes.at(0).indices.size();
     unsigned int roofSize = roof.meshes.at(0).indices.size();
-    helicopter = Helicopter(glm::vec3(0, 10, 0));
+    helicopter = Helicopter(glm::vec3(0, 5, 0));
+    helicopter.transform.scale = glm::vec3(0.1);
     //cout << houseVAO << endl;
     int total = number * number;
     shared_ptr<Building>* houses = new shared_ptr<Building> [total];
@@ -279,10 +280,11 @@ int main(int, char**)
     //        glVertexAttribDivisor(6, 1);
 
     //        glBindVertexArray(0);
-    //floorRoot->updateSelfAndChild();
+    floorRoot->updateSelfAndChild();
     for (int i = 0; i < 4; ++i) {
         shader.setLight(i, lights[i]->light);
     }
+    helicopter.dirty = true;
     //list<Mesh> generatedMeshes = { cylinder, cylinder2, cylinder3, cylinder4, cylinder5, cylinder6 };//, norbit, morbit, m2orbit, gorbit, orbit, Corbit, m3orbit};
     while (!glfwWindowShouldClose(window))
     {
@@ -315,7 +317,17 @@ int main(int, char**)
         //floor.transform.eulerRot.y += 0.4;
         
         floorRoot->Draw(shader);
+        helicopter.Draw(shader);
+        helicopter.Update(deltaTime);
         shader.use();
+        if (!freeCamera)
+        {
+            camera.Position = helicopter.transform.pos - (glm::vec3(-cos(glm::radians(helicopter.transform.eulerRot.y)), -1.0, -sin(glm::radians(helicopter.transform.eulerRot.y)) * 2));
+            camera.Yaw = -helicopter.transform.eulerRot.y - 90;
+            camera.Pitch = helicopter.transform.eulerRot.x - 30;
+            camera.updateCameraVectors();
+        }
+            
 
 
         /*if (house.textures_loaded.size())
@@ -742,35 +754,41 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
         
-    /*if (glfwGetKey(window, GLFW_KEY_Z))
-        glfwSetCursorPosCallback(window, nullptr);*/
+    if (glfwGetKey(window, GLFW_KEY_Z))
+        freeCamera = !freeCamera;
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
-        camera.ProcessKeyboard(FORWARD, deltaTime);
+        if (freeCamera)
+            camera.ProcessKeyboard(FORWARD, deltaTime);
         helicopter.Move(FORWARD);
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
+        if (freeCamera)
         camera.ProcessKeyboard(BACKWARD, deltaTime);
         helicopter.Move(BACKWARD);
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
+        if (freeCamera)
         camera.ProcessKeyboard(LEFT, deltaTime);
         helicopter.Move(LEFT);
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
+        if (freeCamera)
         camera.ProcessKeyboard(RIGHT, deltaTime);
         helicopter.Move(RIGHT);
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == 1)
     {
+        if (freeCamera)
         camera.ProcessKeyboard(UP, deltaTime);
         helicopter.Move(UP);
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == 1)
     {
+        if (freeCamera)
         helicopter.Move(DOWN);
         camera.ProcessKeyboard(DOWN, deltaTime);
     }
