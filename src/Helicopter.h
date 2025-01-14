@@ -1,8 +1,7 @@
 #include "Model.h"
 #include "Building.h"
 using namespace std;
-const string pathToBody = "res/models/Helicopter.obj";
-const string pathToPropeller = "res/models/Propeller.obj";
+string basePath = "res/models/";
 class Helicopter : public Building
 {
 public:
@@ -10,27 +9,40 @@ public:
 	{
 	}
 
-	Helicopter(glm::vec3 position) : Building(pathToBody)
+	Helicopter(glm::vec3 position) : Building(basePath + "Helicopter.obj")
 	{
 		transform.pos = position;
-		propeller = this->addChild(Building(pathToPropeller));
+		propeller = this->addChild(Building(basePath + "Propeller.obj"));
+		window = this->addChild(Building(basePath + "Window.obj"));
 	}
 
 	void Draw(Shader shader)
 	{
 		Model::Draw(shader);
-		propeller->Draw(shader);
+		for (auto& c : children)
+		{
+			c->Draw(shader);
+		}
+	}
+
+	void fixGraph()
+	{
+		for (auto& c : children)
+		{
+			c->parent = this;
+		}
 	}
 
 	void Update(float deltaTime)
 	{
 		//cout << deltaTime << endl;
 		delta = deltaTime;
-		propeller->transform.eulerRot += glm::vec3(0, propellerSpeed, 0);
-		propeller->transform.pos = transform.pos;
-		propeller->transform.scale = transform.scale;
-		propeller->dirty = true;
 		dirty = true;
+		propeller->transform.eulerRot += glm::vec3(0, propellerSpeed, 0);
+		//dummy.transform.pos = transform.pos;
+		//dummy.transform.eulerRot = transform.eulerRot;
+		//dummy.transform.scale = transform.scale;
+		//dummy.dirty = true;
 		Gravity();
 		if (transform.eulerRot.x != 0.0)
 		{
@@ -40,14 +52,17 @@ public:
 		{
 			propellerSpeed -= propellerSpeed / 20;
 		}
+		/*for (auto& c : children)
+		{
+			cout << (c->parent == &dummy) << endl;
+		}*/
 		updateSelfAndChild();
-		
+		//dummy.updateSelfAndChild();
 	}
 
 	void Move(MovementDirection dir)
 	{
 		float velocity = speed * delta;
-		dirty = true;
 		if (dir == FORWARD && !checkGround())
 		{
 			transform.pos -= Front * velocity;
@@ -132,8 +147,8 @@ private:
 	float speed = 1.0f;
 	float delta = 0.0f;
 	glm::vec3 Up = glm::vec3(0,1,0);
-	
 	glm::vec3 Right = glm::vec3(1, 0, 0);
 	glm::vec3 WorldUp = Up;
 	shared_ptr<Building> propeller;
+	shared_ptr<Building> window;
 };

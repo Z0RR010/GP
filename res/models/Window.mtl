@@ -1,0 +1,12 @@
+# Blender 4.3.2 MTL File: 'Window.blend'
+# www.blender.org
+
+newmtl Material
+Ns 1000.000000
+Ka 0.559586 0.559586 0.559586
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 0.434715
+illum 6
+map_Kd Glass.png

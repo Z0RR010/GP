@@ -285,6 +285,7 @@ int main(int, char**)
         shader.setLight(i, lights[i]->light);
     }
     helicopter.dirty = true;
+    helicopter.fixGraph();
     //list<Mesh> generatedMeshes = { cylinder, cylinder2, cylinder3, cylinder4, cylinder5, cylinder6 };//, norbit, morbit, m2orbit, gorbit, orbit, Corbit, m3orbit};
     while (!glfwWindowShouldClose(window))
     {

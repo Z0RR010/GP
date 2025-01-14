@@ -4,6 +4,7 @@
 
 class Building : public Model
 {
+    
 private:
     glm::vec3 GetPositionFromMatrix(const glm::mat4& matrix) {
         return glm::vec3(matrix[3][0], matrix[3][1], matrix[3][2]);
@@ -74,14 +75,14 @@ public:
     {
         shared_ptr<Building> c = std::make_shared<Building>(planet);
         children.emplace_back(c);
-        children.back()->parent = this;
+        c->parent = this;
         return c;
     }
     
     void updateSelfAndChild()
     {
 
-        if (parent && parent->dirty)
+        if ((parent && parent->dirty))
         {
             dirty = true;
         }
@@ -91,6 +92,7 @@ public:
             {
                 if (parent)
                 {
+                    /*cout << parent->transform.scale[0] << endl;*/
                     transform.modelMatrix = transform.computeModelMatrix(parent->transform.modelMatrix);
                 }
                 else
@@ -135,4 +137,3 @@ public:
     }
     
 };
-
