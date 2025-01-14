@@ -322,9 +322,9 @@ int main(int, char**)
         shader.use();
         if (!freeCamera)
         {
-            camera.Position = helicopter.transform.pos - (glm::vec3(-cos(glm::radians(helicopter.transform.eulerRot.y)), -1.0, -sin(glm::radians(helicopter.transform.eulerRot.y)) * 2));
+            camera.Position = helicopter.transform.pos + (helicopter.Front * glm::vec3(1)) + glm::vec3(0,0.5,0);
             camera.Yaw = -helicopter.transform.eulerRot.y - 90;
-            camera.Pitch = helicopter.transform.eulerRot.x - 30;
+            camera.Pitch = -30;
             camera.updateCameraVectors();
         }
             

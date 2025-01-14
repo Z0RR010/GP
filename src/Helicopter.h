@@ -26,55 +26,89 @@ public:
 	{
 		//cout << deltaTime << endl;
 		delta = deltaTime;
-		propeller->transform.eulerRot += glm::vec3(0, 0.3, 0);
+		propeller->transform.eulerRot += glm::vec3(0, propellerSpeed, 0);
 		propeller->transform.pos = transform.pos;
 		propeller->transform.scale = transform.scale;
 		propeller->dirty = true;
+		dirty = true;
+		Gravity();
+		if (transform.eulerRot.x != 0.0)
+		{
+			transform.eulerRot.x -= transform.eulerRot.x / 20;
+		}
+		if (propellerSpeed != 0.0)
+		{
+			propellerSpeed -= propellerSpeed / 20;
+		}
 		updateSelfAndChild();
+		
 	}
 
 	void Move(MovementDirection dir)
 	{
 		float velocity = speed * delta;
 		dirty = true;
-		if (dir == FORWARD)
+		if (dir == FORWARD && !checkGround())
 		{
 			transform.pos -= Front * velocity;
-			transform.eulerRot.x += velocity * 2;
-			if (transform.eulerRot.x > 15)
-			{
-				transform.eulerRot.x = 15;
-			}
-		}
-			
-		if (dir == BACKWARD)
-		{
-			transform.pos += Front * velocity;
 			transform.eulerRot.x -= velocity * 2;
 			if (transform.eulerRot.x < -15)
 			{
 				transform.eulerRot.x = -15;
 			}
 		}
-		if (dir == LEFT)
+			
+		if (dir == BACKWARD && !checkGround())
 		{
-			transform.eulerRot.y += velocity * 10;
+			transform.pos += Front * velocity;
+			transform.eulerRot.x += velocity * 2;
+			if (transform.eulerRot.x > 15)
+			{
+				transform.eulerRot.x = 15;
+			}
+		}
+		if (dir == LEFT && !checkGround())
+		{
+			transform.eulerRot.y += velocity * 20;
 			updateVectors();
 		}
-		if (dir == RIGHT)
+		if (dir == RIGHT && !checkGround())
 		{
-			transform.eulerRot.y -= velocity * 10;
+			transform.eulerRot.y -= velocity * 20;
 			updateVectors();
 		}
 		if (dir == UP)
 		{
 			transform.pos += WorldUp * velocity;
+			fallSpeed = 0.001;
 		}
-		if (dir == DOWN)
+		if (dir == DOWN && !checkGround())
 		{
 			transform.pos -= WorldUp * velocity;
 		}
+		if (propellerSpeed < 1)
+		{
+			propellerSpeed += 0.05;
+		}
 	}
+
+	void Gravity()
+	{
+		if (!checkGround())
+		{
+			if (fallSpeed < 0.01)
+			{
+				fallSpeed += 0.0001;
+			}
+			transform.pos.y -= fallSpeed;
+		}
+	}
+
+	bool checkGround()
+	{
+		return transform.pos.y <= 0.18 && transform.pos.y > 0.17 && transform.pos.x <= 5 && transform.pos.z <= 5 && transform.pos.x >= -5 && transform.pos.z >= -5;
+	}
+	glm::vec3 Front = glm::vec3(0, 0, 1);
 private:
 	void updateVectors()
 	{
@@ -93,10 +127,12 @@ private:
 		Right = glm::normalize(glm::cross(Front, WorldUp));  // normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
 		Up = glm::normalize(glm::cross(Right, Front));
 	}
+	float fallSpeed = 0.0001;
+	float propellerSpeed = 0;
 	float speed = 1.0f;
 	float delta = 0.0f;
 	glm::vec3 Up = glm::vec3(0,1,0);
-	glm::vec3 Front = glm::vec3(0, 0, 1);
+	
 	glm::vec3 Right = glm::vec3(1, 0, 0);
 	glm::vec3 WorldUp = Up;
 	shared_ptr<Building> propeller;
