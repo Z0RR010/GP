@@ -250,47 +250,47 @@ int main(int, char**)
     unsigned int cubemapTexture = loadCubemap(faces);
     float skyboxVertices[] = {
         // positions          
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
+        -10.0f,  10.0f, -10.0f,
+        -10.0f, -10.0f, -10.0f,
+         10.0f, -10.0f, -10.0f,
+         10.0f, -10.0f, -10.0f,
+         10.0f,  10.0f, -10.0f,
+        -10.0f,  10.0f, -10.0f,
 
-        -1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
+        -10.0f, -10.0f,  10.0f,
+        -10.0f, -10.0f, -10.0f,
+        -10.0f,  10.0f, -10.0f,
+        -10.0f,  10.0f, -10.0f,
+        -10.0f,  10.0f,  10.0f,
+        -10.0f, -10.0f,  10.0f,
 
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
+         10.0f, -10.0f, -10.0f,
+         10.0f, -10.0f,  10.0f,
+         10.0f,  10.0f,  10.0f,
+         10.0f,  10.0f,  10.0f,
+         10.0f,  10.0f, -10.0f,
+         10.0f, -10.0f, -10.0f,
 
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
+        -10.0f, -10.0f,  10.0f,
+        -10.0f,  10.0f,  10.0f,
+         10.0f,  10.0f,  10.0f,
+         10.0f,  10.0f,  10.0f,
+         10.0f, -10.0f,  10.0f,
+        -10.0f, -10.0f,  10.0f,
 
-        -1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-         1.0f,  1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f,
+        -10.0f,  10.0f, -10.0f,
+         10.0f,  10.0f, -10.0f,
+         10.0f,  10.0f,  10.0f,
+         10.0f,  10.0f,  10.0f,
+        -10.0f,  10.0f,  10.0f,
+        -10.0f,  10.0f, -10.0f,
 
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f
+        -10.0f, -10.0f, -10.0f,
+        -10.0f, -10.0f,  10.0f,
+         10.0f, -10.0f, -10.0f,
+         10.0f, -10.0f, -10.0f,
+        -10.0f, -10.0f,  10.0f,
+         10.0f, -10.0f,  10.0f
     };
     unsigned int skyboxVAO;
     unsigned int skyboxVBO;
@@ -299,6 +299,8 @@ int main(int, char**)
     glBindVertexArray(skyboxVAO);
     glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
     glBufferData(GL_ARRAY_BUFFER, 108 * sizeof(float), &skyboxVertices[0], GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
     //glEnable(GL_FRAMEBUFFER_SRGB);
     /*for (int i = 0; i < number; ++i)
         houses[i] = new shared_ptr<Building>[number];*/
@@ -404,9 +406,10 @@ int main(int, char**)
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
         shader.setVec3("viewPos", camera.Position);
-        view = glm::mat4(glm::mat3(view));
+        glm::mat4 view2 = glm::mat4(glm::mat3(camera.GetViewMatrix()));
+        glDepthMask(GL_FALSE);
         skyboxShader.use();
-        skyboxShader.setMat4("view", view);
+        skyboxShader.setMat4("view", view2);
         skyboxShader.setMat4("projection", projection);
         
         //shader.setVec3("lightPos", GetPositionFromMatrix(lights[0]->transform.modelMatrix));
@@ -414,7 +417,7 @@ int main(int, char**)
         //floor.transform.eulerRot.z = RotationZ;
         //floor.transform.eulerRot.x = RotationX;
         //floor.transform.eulerRot.y += 0.4;
-        glDepthMask(GL_FALSE);
+        
         glBindVertexArray(skyboxVAO);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36);
