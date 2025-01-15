@@ -100,6 +100,7 @@ float constantAtt = 1.0f;
 float linearAtt = 0.09f;
 float quadraticAtt = 0.032f;
 float ambientStrength = 0.5;
+string textureFolder = "res/textures/";
 glm::vec3 ambientColor = glm::vec3(1.0);
 
 ImVec4 red = ImVec4(1, 0, 0, 1);
@@ -122,6 +123,37 @@ ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 unsigned int VAO;
 unsigned int textureID;
 Helicopter helicopter;
+unsigned int loadCubemap(vector<std::string> faces)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++)
+    {
+        unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
+            );
+            stbi_image_free(data);
+        }
+        else
+        {
+            std::cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
+}
 
 int main(int, char**)
 {
@@ -132,6 +164,7 @@ int main(int, char**)
     }
     spdlog::info("Initialized project.");
     Shader shader = Shader("res/shaders/VertexShader.vert", "res/shaders/FragmentShader.frag");
+    Shader skyboxShader = Shader("res/shaders/Skybox.vert", "res/shaders/Skybox.frag");
     init_imgui();
     spdlog::info("Initialized ImGui.");
     glfwSetWindowUserPointer(window, &camera);
@@ -205,6 +238,67 @@ int main(int, char**)
     shader.setFloat("quadraticAttenuation", quadraticAtt);
     shader.setFloat("ambientStrength", ambientStrength);
     shader.setVec3("ambientColor", ambientColor);
+    vector<std::string> faces
+    {
+        textureFolder +   "right.jpg",
+        textureFolder +   "left.jpg",
+        textureFolder +   "top.jpg",
+        textureFolder +   "bottom.jpg",
+        textureFolder +   "front.jpg",
+        textureFolder +   "back.jpg"
+    };
+    unsigned int cubemapTexture = loadCubemap(faces);
+    float skyboxVertices[] = {
+        // positions          
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        -1.0f,  1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+         1.0f,  1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f
+    };
+    unsigned int skyboxVAO;
+    unsigned int skyboxVBO;
+    glGenVertexArrays(1, &skyboxVAO);
+    glGenBuffers(1, &skyboxVBO);
+    glBindVertexArray(skyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, 108 * sizeof(float), &skyboxVertices[0], GL_STATIC_DRAW);
     //glEnable(GL_FRAMEBUFFER_SRGB);
     /*for (int i = 0; i < number; ++i)
         houses[i] = new shared_ptr<Building>[number];*/
@@ -305,22 +399,32 @@ int main(int, char**)
         lastFrame = currentFrame;
         processInput(window);
         
-        
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
         shader.setVec3("viewPos", camera.Position);
+        view = glm::mat4(glm::mat3(view));
+        skyboxShader.use();
+        skyboxShader.setMat4("view", view);
+        skyboxShader.setMat4("projection", projection);
+        
         //shader.setVec3("lightPos", GetPositionFromMatrix(lights[0]->transform.modelMatrix));
         //texture.setVec3("color", color);
         //floor.transform.eulerRot.z = RotationZ;
         //floor.transform.eulerRot.x = RotationX;
         //floor.transform.eulerRot.y += 0.4;
-        
+        glDepthMask(GL_FALSE);
+        glBindVertexArray(skyboxVAO);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
+        //glBindTexture(GL_TEXTURE_CUBE_MAP,0);
+        shader.use();
         floorRoot->Draw(shader);
         helicopter.Draw(shader);
         helicopter.Update(deltaTime);
-        shader.use();
+        
         if (!freeCamera)
         {
             camera.Position = helicopter.transform.pos + (helicopter.Front * glm::vec3(1)) + glm::vec3(0,0.5,0);
