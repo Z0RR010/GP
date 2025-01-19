@@ -13,10 +13,10 @@ public:
 	{
 		transform.pos = position;
 		//propeller = this->addChild(Building(basePath + "Propeller.obj"));
-		propellers.push_back(this->addChild(Building(Mesh::generateCube(5, 0.1, 0.5))));
-		propellers.push_back(this->addChild(Building(Mesh::generateCube(0.5, 0.1, 5))));
-		propellers.push_back(this->addChild(Building(Mesh::generateCube(0.5, 0.1, -5))));
-		propellers.push_back(this->addChild(Building(Mesh::generateCube(-5, 0.1, 0.5))));
+		propellers.push_back(this->addChild(Building(Mesh::generateCube(8, 0.1, 0.2))));
+		propellers.push_back(this->addChild(Building(Mesh::generateCube(0.2, 0.1, 8))));
+		propellers.push_back(this->addChild(Building(Mesh::generateCube(0.2, 0.1, -8))));
+		propellers.push_back(this->addChild(Building(Mesh::generateCube(-8, 0.1, 0.2))));
 		for (int i = 0; i < 4; i++)
 		{
 			
@@ -35,30 +35,30 @@ public:
 		tail = this->addChild(Building(tailMesh));
 		glm::vec3 flat = glm::vec3(90, 0, 0);
 		tail->transform.eulerRot = flat;
-		tail->transform.pos = glm::vec3(0, 0, 3);
+		tail->transform.pos = glm::vec3(0, 0, 0.5);
 		Mesh l = Mesh();
 		l.generateCylinder(0.05, 1, 12);
 		l.color = bodyColor;
 		rb = this->addChild(Building(l));
-		rb->transform.pos = glm::vec3(0.4, -1, 0.9);
+		rb->transform.pos = glm::vec3(0.4, -1.5, 0.9);
 		rb->transform.eulerRot = glm::vec3(0);
 		lb = this->addChild(Building(l));
-		lb->transform.pos = glm::vec3(-0.4, -1, 0.9);
+		lb->transform.pos = glm::vec3(-0.4, -1.5, 0.9);
 		lb->transform.eulerRot = glm::vec3(0);
 		rf = this->addChild(Building(l));
-		rf->transform.pos = glm::vec3(0.4, -1, -0.9);
+		rf->transform.pos = glm::vec3(0.4, -1.5, -0.9);
 		rf->transform.eulerRot = glm::vec3(0);
 		lf = this->addChild(Building(l));
-		lf->transform.pos = glm::vec3(-0.4, -1, -0.9);
+		lf->transform.pos = glm::vec3(-0.4, -1.5, -0.9);
 		lf->transform.eulerRot = glm::vec3(0);
 		Mesh m = Mesh();
 		m.generateCylinder(0.05, 3, 12);
 		m.color = bodyColor;
 		rl = this->addChild(Building(m));
-		rl->transform.pos = glm::vec3(0.4, -1.6, 0);
+		rl->transform.pos = glm::vec3(0.4, -1.55, -1.5);
 		rl->transform.eulerRot = flat;
 		ll = this->addChild(Building(m));
-		ll->transform.pos = glm::vec3(-0.4, -1.6, 0);
+		ll->transform.pos = glm::vec3(-0.4, -1.55, -1.5);
 		ll->transform.eulerRot = flat;
 		//tail->reflect = true;
 		//this->reflect = true;

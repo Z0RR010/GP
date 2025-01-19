@@ -130,78 +130,74 @@ Mesh::Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<unsigne
     //}
 
 
-void Mesh::generateCylinder(float radius, float height, int numSegments) {
-    float halfHeight = height / 2.0f;
-    float angleStep = 2.0f * M_PI / numSegments;
-    this->radius = radius;
-    this->height = height;
-    // Generate vertices for the top and bottom circles
-    for (int i = 0; i <= numSegments; ++i) {
-        float angle = i * angleStep;
-        float x = radius * cos(angle);
-        float z = radius * sin(angle);
+void Mesh::generateCylinder(float R, float H, int n) {
+    vertices.clear();
+    indices.clear();
 
-        // Top circle vertex
-        vertices.push_back({
-            glm::vec3(x, halfHeight, z),  // Position
-            glm::vec3(0.0f, 1.0f, 0.0f), // Normal (pointing up)
-            glm::vec2((float)i / numSegments, 1.0f) // Texture coordinate
-            });
+    const int sectorCount = 36;
+    const float PI = 3.14159265359f;
 
-        // Bottom circle vertex
-        vertices.push_back({
-            glm::vec3(x, -halfHeight, z), // Position
-            glm::vec3(0.0f, -1.0f, 0.0f), // Normal (pointing down)
-            glm::vec2((float)i / numSegments, 0.0f) // Texture coordinate
-            });
+    // Adjust base
+    float baseH = 0.0f;
+
+    // Generate side vertices
+    for (int i = 0; i <= sectorCount; ++i) {
+        float angle = i * (2 * PI / sectorCount);
+        float x = R * cos(angle);
+        float z = R * sin(angle);
+
+        vertices.push_back({ {x, H, z}, glm::normalize(glm::vec3(x, 0, z)), {0, 0} });
+        vertices.push_back({ {x, baseH, z}, glm::normalize(glm::vec3(x, 0, z)), {0, 0} });
     }
 
-    // Generate indices for the side faces
-    for (int i = 0; i < numSegments; ++i) {
+    for (int i = 0; i < sectorCount; ++i) {
         int top1 = i * 2;
-        int top2 = (i + 1) * 2;
-        int bottom1 = top1 + 1;
-        int bottom2 = top2 + 1;
+        int top2 = top1 + 2;
 
-        // Side triangles
         indices.push_back(top1);
-        indices.push_back(bottom1);
         indices.push_back(top2);
+        indices.push_back(top1 + 1);
 
-        indices.push_back(bottom1);
-        indices.push_back(bottom2);
         indices.push_back(top2);
+        indices.push_back(top2 + 1);
+        indices.push_back(top1 + 1);
     }
 
-    // Generate vertices for the center points of top and bottom circles
-    int centerTopIndex = vertices.size();
-    vertices.push_back({
-        glm::vec3(0.0f, halfHeight, 0.0f),  // Position
-        glm::vec3(0.0f, 1.0f, 0.0f),       // Normal (pointing up)
-        glm::vec2(0.5f, 0.5f)              // Texture coordinate
-        });
+    // Generate top and bottom circles
+    int baseCenterIndex = vertices.size();
+    vertices.push_back({ {0, H, 0}, {0, 1, 0}, {0, 0} }); // top center
+    int topCenterIndex = baseCenterIndex;
 
-    int centerBottomIndex = vertices.size();
-    vertices.push_back({
-        glm::vec3(0.0f, -halfHeight, 0.0f), // Position
-        glm::vec3(0.0f, -1.0f, 0.0f),       // Normal (pointing down)
-        glm::vec2(0.5f, 0.5f)               // Texture coordinate
-        });
+    for (int i = 0; i <= sectorCount; ++i) {
+        float angle = i * (2 * PI / sectorCount);
+        float x = R * cos(angle);
+        float z = R * sin(angle);
 
-    // Generate indices for the top and bottom circles
-    for (int i = 0; i < numSegments; ++i) {
-        int top = i * 2;
-        int nextTop = ((i + 1) % numSegments) * 2;
+        vertices.push_back({ {x, H, z}, {0, 1, 0}, {0, 0} });
+    }
 
-        // Top circle triangle
-        indices.push_back(centerTopIndex);
-        indices.push_back(nextTop);
-        indices.push_back(top);
+    for (int i = 0; i < sectorCount; ++i) {
+        indices.push_back(topCenterIndex);
+        indices.push_back(topCenterIndex + i + 1);
+        indices.push_back(topCenterIndex + i + 2);
+    }
 
-        // Bottom circle triangle
-        indices.push_back(centerBottomIndex);
-        indices.push_back(top + 1);
-        indices.push_back((i + 1) % numSegments * 2 + 1);
+    baseCenterIndex = vertices.size();
+    vertices.push_back({ {0, baseH, 0}, {0, -1, 0}, {0, 0} }); // bottom center
+    int bottomCenterIndex = baseCenterIndex;
+
+    for (int i = 0; i <= sectorCount; ++i) {
+        float angle = i * (2 * PI / sectorCount);
+        float x = R * cos(angle);
+        float z = R * sin(angle);
+
+        vertices.push_back({ {x, baseH, z}, {0, -1, 0}, {0, 0} });
+    }
+
+    for (int i = 0; i < sectorCount; ++i) {
+        indices.push_back(bottomCenterIndex);
+        indices.push_back(bottomCenterIndex + i + 2);
+        indices.push_back(bottomCenterIndex + i + 1);
     }
     Generated = true;
     orbit = false;
