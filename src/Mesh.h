@@ -7,7 +7,7 @@
 #include <string>
 #include "Shader.h"
 #include <cmath>
-class Building;
+//class Building;
 
 
 using namespace std;
@@ -30,12 +30,17 @@ class Mesh
         vector<unsigned int> indices;
         vector<Texture>      textures;
         glm::vec3 color;
-        Building* orbitPlanet;
         Mesh(){}
         Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures);
-        Mesh Regenerate(int lod);
-        static Mesh generateOrbit(int slices, int stacks, Building p, bool setup = true);
+        Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<unsigned int> textID);
+        static unsigned int loadCubemap(vector<std::string> faces);
+        /*Mesh Regenerate(int lod);
+        static Mesh generateOrbit(int slices, int stacks, Building p, bool setup = true);*/
+        static Mesh generateCube(float width, float height, float depth);
+        static Mesh generateCuboid(float frontWidth, float backWidth, float height, float depth);
+        static Mesh generateSkybox(std::vector<std::string> faces);
         void generateCylinder(float radius, float height, int numSegments);
+        bool skybox = false;
         void Draw(Shader& shader);
     public:
         //  render data

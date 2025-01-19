@@ -10,7 +10,7 @@ struct Light {
     float outerCutoff;  // Spotlight outer cutoff (cosine of the outer cone angle)
 };
 out vec4 FragColor;
-//uniform vec3 color;
+
 
 in vec2 TexCoord;
 in vec3 Normal;
@@ -25,6 +25,11 @@ uniform vec3 viewPos;
 uniform Light lights[4];
 uniform float ambientStrength;
 uniform vec3 ambientColor;
+uniform samplerCube skybox;
+uniform bool reflection;
+uniform float refractRatio;
+uniform vec3 color;
+
 
 void main()
 {
@@ -38,10 +43,10 @@ void main()
     result += ambient;
     vec4 base;
     base = texture(texture_diffuse1, TexCoord);
-    //if (generated)
-    //{
-    //    base = vec4(color,1.0f);
-    //}
+    if (generated)
+    {
+        base = vec4(color,1.0f);
+    }
     //else
     //{
         // * texture(texture_specular1, TexCoord);// * vec4(result,1.0f);
@@ -94,7 +99,22 @@ void main()
 
     vec4 col = vec4(result,1.0f) * base;
     float gamma = 2.2;
+    
+    if (reflection)
+    {
+        vec3 I = normalize(FragPos - viewPos);
+        vec3 R = reflect(I, normalize(Normal));
+        col.rgb = (texture(skybox, R).rgb * result);
+    }
+    if (refractRatio != 1.0)
+    {
+        float ratio = 1.00 / refractRatio;
+        vec3 I = normalize(FragPos - viewPos);
+        vec3 R = refract(I, normalize(Normal), ratio);
+        col.rgb = (texture(skybox, R).rgb) * (result);
+    }
     col.rgb = pow(col.rgb, vec3(1.0/gamma));
+    //FragColor = vec4(texture(skybox, R).rgb, 1.0);
     FragColor = col;
     //FragColor = vec4(1.0f);
 } 

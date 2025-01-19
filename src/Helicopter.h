@@ -5,20 +5,46 @@ string basePath = "res/models/";
 class Helicopter : public Building
 {
 public:
-	Helicopter()// : Building(pathToBody)
+	Helicopter()
 	{
 	}
 
 	Helicopter(glm::vec3 position) : Building(basePath + "Helicopter.obj")
 	{
 		transform.pos = position;
-		propeller = this->addChild(Building(basePath + "Propeller.obj"));
+		//propeller = this->addChild(Building(basePath + "Propeller.obj"));
+		propellers.push_back(this->addChild(Building(Mesh::generateCube(5, 0.1, 0.5))));
+		propellers.push_back(this->addChild(Building(Mesh::generateCube(0.5, 0.1, 5))));
+		propellers.push_back(this->addChild(Building(Mesh::generateCube(0.5, 0.1, -5))));
+		propellers.push_back(this->addChild(Building(Mesh::generateCube(-5, 0.1, 0.5))));
+		for (int i = 0; i < 4; i++)
+		{
+			
+			propellers[i]->transform.eulerRot.y = 90 * i;
+			//propellers[i]->transform.eulerRot.x = 90;
+			propellers[i]->transform.pos = glm::vec3(0, 1.4, 0);
+			propellers[i]->meshes[0].color = glm::vec3(20, 20, 20);
+			propellers[i]->reflect = true;
+		}
 		window = this->addChild(Building(basePath + "Window.obj"));
+		window->refractionRatio = 1.52;
+		Mesh tailMesh = Mesh();
+		tailMesh.generateCylinder(0.2, 5, 12);
+		tailMesh.color = glm::vec3(0.51, 0.745, 1);
+		tail = this->addChild(Building(tailMesh));
+		tail->transform.eulerRot.x = 90;
+		tail->transform.pos = glm::vec3(0, 0, 3);
+		tail->transform.eulerRot.z = 0;
+		tail->transform.eulerRot.y = 0;
+		//tail->reflect = true;
+		//this->reflect = true;
+		//propeller->reflect = true;
+		
 	}
 
 	void Draw(Shader shader)
 	{
-		Model::Draw(shader);
+		Building::Draw(shader);
 		for (auto& c : children)
 		{
 			c->Draw(shader);
@@ -31,6 +57,7 @@ public:
 		{
 			c->parent = this;
 		}
+		
 	}
 
 	void Update(float deltaTime)
@@ -38,7 +65,13 @@ public:
 		//cout << deltaTime << endl;
 		delta = deltaTime;
 		dirty = true;
-		propeller->transform.eulerRot += glm::vec3(0, propellerSpeed, 0);
+		for (auto& propeller : propellers)
+		{
+			propeller->transform.eulerRot += glm::vec3(0, propellerSpeed, 0);
+			propeller->transform.eulerRot.x = 0;
+			propeller->transform.eulerRot.z = 0;
+		}
+			
 		//dummy.transform.pos = transform.pos;
 		//dummy.transform.eulerRot = transform.eulerRot;
 		//dummy.transform.scale = transform.scale;
@@ -48,9 +81,9 @@ public:
 		{
 			transform.eulerRot.x -= transform.eulerRot.x / 20;
 		}
-		if (propellerSpeed != 0.0)
+		if (propellerSpeed > 0.0)
 		{
-			propellerSpeed -= propellerSpeed / 20;
+			propellerSpeed -= propellerSpeed / 30;
 		}
 		/*for (auto& c : children)
 		{
@@ -84,26 +117,27 @@ public:
 		}
 		if (dir == LEFT && !checkGround())
 		{
-			transform.eulerRot.y += velocity * 20;
+			transform.eulerRot.y += velocity * 30;
 			updateVectors();
 		}
 		if (dir == RIGHT && !checkGround())
 		{
-			transform.eulerRot.y -= velocity * 20;
+			transform.eulerRot.y -= velocity * 30;
 			updateVectors();
 		}
 		if (dir == UP)
 		{
 			transform.pos += WorldUp * velocity;
-			fallSpeed = 0.001;
+			if (fallSpeed >= 0.0)
+				fallSpeed -= 0.005;
 		}
 		if (dir == DOWN && !checkGround())
 		{
 			transform.pos -= WorldUp * velocity;
 		}
-		if (propellerSpeed < 1)
+		if (propellerSpeed < 5)
 		{
-			propellerSpeed += 0.05;
+			propellerSpeed += 0.1;
 		}
 	}
 
@@ -111,17 +145,21 @@ public:
 	{
 		if (!checkGround())
 		{
-			if (fallSpeed < 0.01)
+			if (fallSpeed < 0.03)
 			{
 				fallSpeed += 0.0001;
 			}
 			transform.pos.y -= fallSpeed;
 		}
+		else if (transform.pos.y > 0)
+		{
+			transform.pos.y = 0.41;
+		}
 	}
 
 	bool checkGround()
 	{
-		return transform.pos.y <= 0.18 && transform.pos.y > 0.17 && transform.pos.x <= 5 && transform.pos.z <= 5 && transform.pos.x >= -5 && transform.pos.z >= -5;
+		return transform.pos.y <= 0.41 && transform.pos.y > -0.25 && transform.pos.x <= 5 && transform.pos.z <= 5 && transform.pos.x >= -5 && transform.pos.z >= -5;
 	}
 	glm::vec3 Front = glm::vec3(0, 0, 1);
 private:
@@ -149,6 +187,8 @@ private:
 	glm::vec3 Up = glm::vec3(0,1,0);
 	glm::vec3 Right = glm::vec3(1, 0, 0);
 	glm::vec3 WorldUp = Up;
+	vector<shared_ptr<Building>> propellers;
 	shared_ptr<Building> propeller;
 	shared_ptr<Building> window;
+	shared_ptr<Building> tail;
 };

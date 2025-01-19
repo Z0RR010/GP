@@ -122,38 +122,7 @@ constexpr int32_t GL_VERSION_MINOR = 6;
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 unsigned int VAO;
 unsigned int textureID;
-Helicopter helicopter;
-unsigned int loadCubemap(vector<std::string> faces)
-{
-    unsigned int textureID;
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-
-    int width, height, nrChannels;
-    for (unsigned int i = 0; i < faces.size(); i++)
-    {
-        unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
-        if (data)
-        {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
-            );
-            stbi_image_free(data);
-        }
-        else
-        {
-            std::cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
-            stbi_image_free(data);
-        }
-    }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-    return textureID;
-}
+shared_ptr<Helicopter> helicopter;
 
 int main(int, char**)
 {
@@ -178,7 +147,8 @@ int main(int, char**)
     //glDisable(GL_CULL_FACE);
     // Main loop
     
-    floorRoot = make_shared<Building>(Building("res/models/Floor.obj"));
+    //floorRoot = make_shared<Building>(Building());
+    shared_ptr<Building> skybox = make_shared<Building>(Building());
     Building house = Building("res/models/House.obj");
     Building roof = Building("res/models/Roof.obj");
     Building light = Building("res/models/Light.obj");
@@ -187,28 +157,29 @@ int main(int, char**)
     unsigned int roofVAO = roof.meshes.at(0).VAO;
     unsigned int houseSize = house.meshes.at(0).indices.size();
     unsigned int roofSize = roof.meshes.at(0).indices.size();
-    helicopter = Helicopter(glm::vec3(0, 5, 0));
-    helicopter.transform.scale = glm::vec3(0.1);
+    helicopter = make_shared<Helicopter>(Helicopter(glm::vec3(0, 5, 0)));
+    skybox->children.push_back(helicopter);
+    helicopter->transform.scale = glm::vec3(0.1);
     //cout << houseVAO << endl;
     int total = number * number;
     shared_ptr<Building>* houses = new shared_ptr<Building> [total];
     shared_ptr<Building>* lights = new shared_ptr<Building>[4];
     //lights[0] = make_shared<Building>(light);
-    lights[0] = floorRoot->addChild(lightD);
+    lights[0] = skybox->addChild(lightD);
     lights[0]->light.type = 0;
     lights[0]->light.on = true; 
     lights[0]->light.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
     lights[0]->light.color = glm::vec3(1.0f, 1.0f, 1.0f);
     lights[0]->light.intensity = 1.0f;
     lights[0]->transform.pos = glm::vec3(0.0f,10.0f,0.0f);
-    lights[1] = floorRoot->addChild(light);
+    lights[1] = skybox->addChild(light);
     lights[1]->light.type = 1;
     lights[1]->light.on = true; // Enabled
     lights[1]->transform.pos = glm::vec3(0.0f, 1.0f, 5.0f);
     lights[1]->light.color = glm::vec3(0.0f, 0.0f, 1.0f);
     lights[1]->light.intensity = 1.0f;
     lights[1]->light.rotate = true;
-    lights[2] = floorRoot->addChild(lightD);
+    lights[2] = skybox->addChild(lightD);
     lights[2]->light.type = 2;
     lights[2]->light.on = true; // Enabled
     lights[2]->transform.pos = glm::vec3(2.0f, 3.0f, 4.0f);
@@ -217,7 +188,7 @@ int main(int, char**)
     lights[2]->light.intensity = 1.0f;
     lights[2]->light.cutoff = glm::cos(glm::radians(12.5f));       // Inner cone angle
     lights[2]->light.outerCutoff = glm::cos(glm::radians(17.5f));  // Outer cone angle
-    lights[3] = floorRoot->addChild(lightD);
+    lights[3] = skybox->addChild(lightD);
     lights[3]->light.type = 2;
     lights[3]->light.on = true; // Enabled
     lights[3]->transform.pos = glm::vec3(-2.0f, 3.0f, -4.0f);
@@ -247,60 +218,11 @@ int main(int, char**)
         textureFolder +   "front.jpg",
         textureFolder +   "back.jpg"
     };
-    unsigned int cubemapTexture = loadCubemap(faces);
-    float skyboxVertices[] = {
-        // positions          
-        -10.0f,  10.0f, -10.0f,
-        -10.0f, -10.0f, -10.0f,
-         10.0f, -10.0f, -10.0f,
-         10.0f, -10.0f, -10.0f,
-         10.0f,  10.0f, -10.0f,
-        -10.0f,  10.0f, -10.0f,
-
-        -10.0f, -10.0f,  10.0f,
-        -10.0f, -10.0f, -10.0f,
-        -10.0f,  10.0f, -10.0f,
-        -10.0f,  10.0f, -10.0f,
-        -10.0f,  10.0f,  10.0f,
-        -10.0f, -10.0f,  10.0f,
-
-         10.0f, -10.0f, -10.0f,
-         10.0f, -10.0f,  10.0f,
-         10.0f,  10.0f,  10.0f,
-         10.0f,  10.0f,  10.0f,
-         10.0f,  10.0f, -10.0f,
-         10.0f, -10.0f, -10.0f,
-
-        -10.0f, -10.0f,  10.0f,
-        -10.0f,  10.0f,  10.0f,
-         10.0f,  10.0f,  10.0f,
-         10.0f,  10.0f,  10.0f,
-         10.0f, -10.0f,  10.0f,
-        -10.0f, -10.0f,  10.0f,
-
-        -10.0f,  10.0f, -10.0f,
-         10.0f,  10.0f, -10.0f,
-         10.0f,  10.0f,  10.0f,
-         10.0f,  10.0f,  10.0f,
-        -10.0f,  10.0f,  10.0f,
-        -10.0f,  10.0f, -10.0f,
-
-        -10.0f, -10.0f, -10.0f,
-        -10.0f, -10.0f,  10.0f,
-         10.0f, -10.0f, -10.0f,
-         10.0f, -10.0f, -10.0f,
-        -10.0f, -10.0f,  10.0f,
-         10.0f, -10.0f,  10.0f
-    };
-    unsigned int skyboxVAO;
-    unsigned int skyboxVBO;
-    glGenVertexArrays(1, &skyboxVAO);
-    glGenBuffers(1, &skyboxVBO);
-    glBindVertexArray(skyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, 108 * sizeof(float), &skyboxVertices[0], GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+    
+    Mesh m = Mesh::generateSkybox(faces);
+    skybox->meshes.push_back(m);
+    floorRoot = skybox->addChild(Building());
+    floorRoot->meshes.push_back(Mesh::generateCube(10, 0.5, 10));
     //glEnable(GL_FRAMEBUFFER_SRGB);
     /*for (int i = 0; i < number; ++i)
         houses[i] = new shared_ptr<Building>[number];*/
@@ -376,12 +298,12 @@ int main(int, char**)
     //        glVertexAttribDivisor(6, 1);
 
     //        glBindVertexArray(0);
-    floorRoot->updateSelfAndChild();
+    //floorRoot->updateSelfAndChild();
     for (int i = 0; i < 4; ++i) {
         shader.setLight(i, lights[i]->light);
     }
-    helicopter.dirty = true;
-    helicopter.fixGraph();
+    helicopter->dirty = true;
+    helicopter->fixGraph();
     //list<Mesh> generatedMeshes = { cylinder, cylinder2, cylinder3, cylinder4, cylinder5, cylinder6 };//, norbit, morbit, m2orbit, gorbit, orbit, Corbit, m3orbit};
     while (!glfwWindowShouldClose(window))
     {
@@ -417,21 +339,20 @@ int main(int, char**)
         //floor.transform.eulerRot.z = RotationZ;
         //floor.transform.eulerRot.x = RotationX;
         //floor.transform.eulerRot.y += 0.4;
+        skybox->updateSelfAndChild();
+        skybox->Draw(skyboxShader);
         
-        glBindVertexArray(skyboxVAO);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
         glDepthMask(GL_TRUE);
         //glBindTexture(GL_TEXTURE_CUBE_MAP,0);
         shader.use();
         floorRoot->Draw(shader);
-        helicopter.Draw(shader);
-        helicopter.Update(deltaTime);
+        helicopter->Draw(shader);
+        helicopter->Update(deltaTime);
         
         if (!freeCamera)
         {
-            camera.Position = helicopter.transform.pos + (helicopter.Front * glm::vec3(1)) + glm::vec3(0,0.5,0);
-            camera.Yaw = -helicopter.transform.eulerRot.y - 90;
+            camera.Position = helicopter->transform.pos + (helicopter->Front * glm::vec3(1)) + glm::vec3(0,0.5,0);
+            camera.Yaw = -helicopter->transform.eulerRot.y - 90;
             camera.Pitch = -30;
             camera.updateCameraVectors();
         }
@@ -600,7 +521,7 @@ void imgui_render(shared_ptr<Building>* houses, shared_ptr<Building>* roofs, sha
         //ImGui::Checkbox("Another Window", &show_another_window);
 
         //ImGui::SliderInt("Level of detail", &Lod, 1, 50);            // Edit 1 float using a slider from 0.0f to 1.0f
-        ImGui::Checkbox("Object modification window", &modWindow);
+        //ImGui::Checkbox("Object modification window", &modWindow);
         ImGui::Checkbox("Light modification window", &lightWindow);
         //ImGui::InputInt("Level of detail", &Lod);
         //if (ImGui::InputInt("Level of detail", &Val)) {
@@ -868,36 +789,36 @@ void processInput(GLFWwindow* window)
     {
         if (freeCamera)
             camera.ProcessKeyboard(FORWARD, deltaTime);
-        helicopter.Move(FORWARD);
+        helicopter->Move(FORWARD);
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
     {
         if (freeCamera)
         camera.ProcessKeyboard(BACKWARD, deltaTime);
-        helicopter.Move(BACKWARD);
+        helicopter->Move(BACKWARD);
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
         if (freeCamera)
         camera.ProcessKeyboard(LEFT, deltaTime);
-        helicopter.Move(LEFT);
+        helicopter->Move(LEFT);
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
         if (freeCamera)
         camera.ProcessKeyboard(RIGHT, deltaTime);
-        helicopter.Move(RIGHT);
+        helicopter->Move(RIGHT);
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == 1)
     {
         if (freeCamera)
         camera.ProcessKeyboard(UP, deltaTime);
-        helicopter.Move(UP);
+        helicopter->Move(UP);
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == 1)
     {
         if (freeCamera)
-        helicopter.Move(DOWN);
+        helicopter->Move(DOWN);
         camera.ProcessKeyboard(DOWN, deltaTime);
     }
 }

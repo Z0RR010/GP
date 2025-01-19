@@ -24,6 +24,8 @@ public:
     bool dirty = true;
     float cutoff = 12.5;
     float ocutoff = 17.5;
+    bool reflect = false;
+    float refractionRatio = 1.0;
     // constructor, expects a filepath to a 3D model.
     Building() {};
     Building(int bufferVBO, int ID) : Model()
@@ -134,6 +136,15 @@ public:
             child->updateSelfAndChild();
         }
         dirty = false;
+    }
+    void Draw(Shader& shader)
+    {
+        shader.setMat4("model", transform.modelMatrix);
+        shader.setBool("reflection", reflect);
+        shader.setFloat("refractRatio", refractionRatio);
+        for (unsigned int i = 0; i < meshes.size(); i++)
+            meshes[i].Draw(shader);
+        shader.setMat4("model", glm::mat4());
     }
     
 };
